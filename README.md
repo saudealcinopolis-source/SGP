@@ -38,7 +38,7 @@ iniciar.bat dentro da pasta
 
 4. Abra o navegador em: http://localhost:3000
 
-📁 Estrutura do Projeto
+### 📁 Estrutura do Projeto
 
 SGP/
 ├── server/              # Backend (Node.js + Express)
@@ -54,11 +54,11 @@ SGP/
 ├── package.json
 └── README.md
 
-💾 Backup
+### 💾 Backup
 O sistema gera backups em formato .db. Use a aba Backup dentro do sistema ou execute:
 fazer-backup.bat
 
-🔧 Tecnologias
+### 🔧 Tecnologias
 Backend: Node.js, Express, sql.js (SQLite em JavaScript puro)
 Frontend: HTML5, CSS3, JavaScript Vanilla
 Banco: SQLite (via sql.js, sem compilação nativa)
