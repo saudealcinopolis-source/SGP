@@ -27,3 +27,42 @@ Sistema web para controle de demandas médicas com suporte a múltiplos procedim
 ```bash
 git clone https://github.com/SEU-USUARIO/sgp.git
 cd sgp
+
+2. Instale as dependências:
+npm install
+
+3.Inicie o servidor:
+node server/index.js
+Ou no Windows, execute o arquivo:
+iniciar.bat dentro da pasta
+
+4. Abra o navegador em: http://localhost:3000
+
+📁 Estrutura do Projeto
+
+SGP/
+├── server/              # Backend (Node.js + Express)
+│   ├── index.js        # Servidor principal
+│   ├── database.js     # Configuração do SQLite
+│   └── routes/         # Rotas da API
+├── public/             # Frontend (HTML, CSS, JS)
+│   ├── index.html
+│   ├── css/
+│   └── js/
+├── dados/              # Banco de dados (NÃO versionado)
+├── backups/            # Backups do sistema (NÃO versionado)
+├── package.json
+└── README.md
+
+💾 Backup
+O sistema gera backups em formato .db. Use a aba Backup dentro do sistema ou execute:
+fazer-backup.bat
+
+🔧 Tecnologias
+Backend: Node.js, Express, sql.js (SQLite em JavaScript puro)
+Frontend: HTML5, CSS3, JavaScript Vanilla
+Banco: SQLite (via sql.js, sem compilação nativa)
+Outros: Multer (uploads), UUID, CORS
+
+📄 Licença
+Projeto desenvolvido para uso interno Thiago Souza Tavares.
