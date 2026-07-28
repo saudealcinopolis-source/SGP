@@ -1,0 +1,148 @@
+/* ================================================================
+   CSS DE IMPRESSAO / PDF (CORRIGIDO)
+   ================================================================ */
+
+@media print {
+
+    /* Esconde TUDO da tela */
+    body * {
+        visibility: hidden !important;
+        display: none !important;
+    }
+
+    /* Mostra APENAS a area de impressao */
+    #area-impressao {
+        visibility: visible !important;
+        display: block !important;
+        position: absolute !important;
+        left: 0 !important;
+        top: 0 !important;
+        width: 100% !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        background: white !important;
+        color: black !important;
+        z-index: 99999 !important;
+    }
+
+    #area-impressao * {
+        visibility: visible !important;
+        display: revert !important;
+        box-shadow: none !important;
+        text-shadow: none !important;
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+    }
+
+    /* Garante que grids e flex funcionem na impressao */
+    #area-impressao .ficha-grid {
+        display: grid !important;
+    }
+
+    #area-impressao .ficha-demanda {
+        display: block !important;
+    }
+
+    .ficha-pdf {
+        width: 100%;
+        max-width: 210mm;
+        margin: 0 auto;
+        padding: 15mm 20mm;
+        font-family: Arial, Helvetica, sans-serif;
+        font-size: 11pt;
+        line-height: 1.5;
+        color: #000 !important;
+        background: #fff !important;
+    }
+
+    .ficha-pdf h1 {
+        font-size: 18pt;
+        text-align: center;
+        margin-bottom: 5px;
+        color: #000 !important;
+    }
+
+    .ficha-pdf .subtitulo {
+        font-size: 9pt;
+        text-align: center;
+        color: #666 !important;
+        margin-bottom: 20px;
+    }
+
+    .ficha-pdf h2 {
+        font-size: 13pt;
+        color: #1e40af !important;
+        border-bottom: 2px solid #cbd5e1;
+        padding-bottom: 3px;
+        margin-top: 15px;
+        margin-bottom: 8px;
+    }
+
+    .ficha-grid {
+        display: grid !important;
+        grid-template-columns: 1fr 1fr 1fr;
+        gap: 6px 15px;
+        margin-bottom: 8px;
+    }
+
+    .ficha-campo label {
+        font-size: 8pt;
+        font-weight: bold;
+        color: #64748b !important;
+        text-transform: uppercase;
+        display: block !important;
+    }
+
+    .ficha-campo span {
+        font-size: 10pt;
+        color: #0f172a !important;
+    }
+
+    .ficha-demanda {
+        border: 1px solid #e2e8f0;
+        padding: 8px;
+        margin-bottom: 6px;
+        background: #fafafa !important;
+        display: block !important;
+    }
+
+    .ficha-demanda strong {
+        color: #1e40af !important;
+        font-size: 10pt;
+    }
+
+    .ficha-demanda div {
+        font-size: 9pt;
+        color: #334155 !important;
+    }
+
+    .ficha-assinatura {
+        margin-top: 40px;
+        display: grid !important;
+        grid-template-columns: 1fr 1fr;
+        gap: 40px;
+    }
+
+    .ficha-assinatura div {
+        border-top: 1px solid #000;
+        padding-top: 5px;
+        text-align: center;
+        font-size: 9pt;
+        color: #333 !important;
+    }
+
+    .ficha-rodape {
+        margin-top: 20px;
+        text-align: center;
+        font-size: 7pt;
+        color: #94a3b8 !important;
+    }
+
+    .page-break {
+        page-break-after: always;
+    }
+
+    .ficha-pdf h2, .ficha-demanda, .ficha-assinatura {
+        page-break-inside: avoid;
+    }
+}
