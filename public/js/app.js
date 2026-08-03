@@ -183,19 +183,20 @@
     }
 
     /* ---- Demandas ---- */
-    function adicionarDemandaVazia(dados) {
-        dados = dados || {};
-        demandasTemp.push({
-            id: Date.now() + Math.random(),
-            especialidade: dados.especialidade || '',
-            procedimentos: dados.procedimentos || '',
-            pedidoCore: dados.pedidoCore || '',
-            pedidoSisreg: dados.pedidoSisreg || '',
-            dataProcedimento: dados.dataProcedimento || ''
-        });
-        renderizarDemandas('lista-demandas', demandasTemp);
-    }
 
+function adicionarDemandaVazia(dados) {
+    dados = dados || {};
+    demandasTemp.push({
+        id: Date.now() + Math.random(),
+        especialidade: dados.especialidade || '',
+        procedimentos: dados.procedimentos || '',
+        pedidoCore: dados.pedidoCore || '',
+        pedidoSisreg: dados.pedidoSisreg || '',
+        dataProcedimento: dados.dataProcedimento || '',
+        cidadeDestino: dados.cidadeDestino || dados.cidade_destino || ''
+    });
+    renderizarDemandas('lista-demandas', demandasTemp);
+}
     function removerDemanda(id) {
         if (demandasTemp.length <= 1) { Toast.mostrar('Deve haver pelo menos uma demanda', 'warning'); return; }
         demandasTemp = demandasTemp.filter(function(d) { return d.id !== id; });
@@ -232,39 +233,37 @@
         }
     }
 
-    function renderizarDemandas(containerId, listaTemp) {
-        var container = document.getElementById(containerId);
-        if (!container) return;
-        if (!listaTemp || listaTemp.length === 0) {
-            container.innerHTML = '<p style="color:var(--color-text-light);text-align:center;padding:20px;">Adicione uma demanda</p>';
-            return;
-        }
-        var sistemaAtivo = 'core';
-        if (containerId === 'lista-demandas') { sistemaAtivo = elVal('select-sistema') || 'core'; }
-        else if (containerId === 'retorno-lista-demandas') { sistemaAtivo = estadoRetornoTemp.sistema || 'core'; }
-        var mostrarCore = sistemaAtivo === 'core' || sistemaAtivo === 'ambos';
-        var mostrarSisreg = sistemaAtivo === 'sisreg' || sistemaAtivo === 'ambos';
-        var atualizador = containerId === 'lista-demandas' ? 'App.atualizarDemanda' : 'App.atualizarDemandaRetorno';
-        var removedor = containerId === 'lista-demandas' ? 'App.removerDemanda' : 'App.removerDemandaRetorno';
-        var html = '';
-        for (var i = 0; i < listaTemp.length; i++) {
-            var d = listaTemp[i];
-            if (!d) continue;
-            html += '<div class="demanda-card"><div class="demanda-header"><span class="demanda-titulo">Procedimento #' + (i + 1) + '</span>';
-            if (listaTemp.length > 1) html += '<button type="button" class="btn-remover-demanda" onclick="' + removedor + '(' + d.id + ')">🗑️ Remover</button>';
-            html += '</div><div class="demanda-grid">';
-            html += '<div class="form-group full-width"><label>Especialidade <span class="obrigatorio">*</span></label><input type="text" value="' + Utils.escapeHtml(d.especialidade || '') + '" oninput="' + atualizador + '(' + d.id + ',\'especialidade\',this.value)" list="lista-especialidades" placeholder="Ex: Cardiologia"></div>';
-            if (containerId === 'lista-demandas') {
-                html += '<div class="form-group"><label>Data do Procedimento</label><input type="date" value="' + (d.dataProcedimento || '') + '" oninput="' + atualizador + '(' + d.id + ',\'dataProcedimento\',this.value)"></div>';
-            }
-            if (mostrarCore) html += '<div class="form-group"><label>Codigo Core</label><input type="text" value="' + Utils.escapeHtml(d.pedidoCore || '') + '" oninput="' + atualizador + '(' + d.id + ',\'pedidoCore\',this.value)" maxlength="50" placeholder="Codigo Core"></div>';
-            if (mostrarSisreg) html += '<div class="form-group"><label>Codigo Sisreg</label><input type="text" value="' + Utils.escapeHtml(d.pedidoSisreg || '') + '" oninput="' + atualizador + '(' + d.id + ',\'pedidoSisreg\',this.value)" maxlength="50" placeholder="Codigo Sisreg"></div>';
-            html += '<div class="form-group full-width"><label>Procedimentos</label><textarea rows="2" maxlength="1000" oninput="' + atualizador + '(' + d.id + ',\'procedimentos\',this.value)" placeholder="Descreva os procedimentos...">' + Utils.escapeHtml(d.procedimentos || '') + '</textarea></div>';
-            html += '</div></div>';
-        }
-        container.innerHTML = html;
+function renderizarDemandas(containerId, listaTemp) {
+    var container = document.getElementById(containerId);
+    if (!container) return;
+    if (!listaTemp || listaTemp.length === 0) {
+        container.innerHTML = '<p style="color:var(--color-text-light);text-align:center;padding:20px;">Adicione uma demanda</p>';
+        return;
     }
-
+    var sistemaAtivo = 'core';
+    if (containerId === 'lista-demandas') { sistemaAtivo = elVal('select-sistema') || 'core'; }
+    else if (containerId === 'retorno-lista-demandas') { sistemaAtivo = estadoRetornoTemp.sistema || 'core'; }
+    var mostrarCore = sistemaAtivo === 'core' || sistemaAtivo === 'ambos';
+    var mostrarSisreg = sistemaAtivo === 'sisreg' || sistemaAtivo === 'ambos';
+    var atualizador = containerId === 'lista-demandas' ? 'App.atualizarDemanda' : 'App.atualizarDemandaRetorno';
+    var removedor = containerId === 'lista-demandas' ? 'App.removerDemanda' : 'App.removerDemandaRetorno';
+    var html = '';
+    for (var i = 0; i < listaTemp.length; i++) {
+        var d = listaTemp[i];
+        if (!d) continue;
+        html += '<div class="demanda-card"><div class="demanda-header"><span class="demanda-titulo">Procedimento #' + (i + 1) + '</span>';
+        if (listaTemp.length > 1) html += '<button type="button" class="btn-remover-demanda" onclick="' + removedor + '(' + d.id + ')">🗑️ Remover</button>';
+        html += '</div><div class="demanda-grid">';
+        html += '<div class="form-group full-width"><label>Especialidade <span class="obrigatorio">*</span></label><input type="text" value="' + Utils.escapeHtml(d.especialidade || '') + '" oninput="' + atualizador + '(' + d.id + ',\'especialidade\',this.value)" list="lista-especialidades" placeholder="Ex: Cardiologia"></div>';
+        html += '<div class="form-group"><label>Cidade Destino <span class="obrigatorio">*</span></label><input type="text" value="' + Utils.escapeHtml(d.cidadeDestino || '') + '" oninput="' + atualizador + '(' + d.id + ',\'cidadeDestino\',this.value)" list="lista-cidades" placeholder="Para onde vai o paciente"></div>';
+        html += '<div class="form-group"><label>Data do Procedimento</label><input type="date" value="' + (d.dataProcedimento || '') + '" oninput="' + atualizador + '(' + d.id + ',\'dataProcedimento\',this.value)"></div>';
+        if (mostrarCore) html += '<div class="form-group"><label>Codigo Core</label><input type="text" value="' + Utils.escapeHtml(d.pedidoCore || '') + '" oninput="' + atualizador + '(' + d.id + ',\'pedidoCore\',this.value)" maxlength="50"></div>';
+        if (mostrarSisreg) html += '<div class="form-group"><label>Codigo Sisreg</label><input type="text" value="' + Utils.escapeHtml(d.pedidoSisreg || '') + '" oninput="' + atualizador + '(' + d.id + ',\'pedidoSisreg\',this.value)" maxlength="50"></div>';
+        html += '<div class="form-group full-width"><label>Procedimentos (descricao)</label><textarea rows="2" maxlength="1000" oninput="' + atualizador + '(' + d.id + ',\'procedimentos\',this.value)" placeholder="Descreva os procedimentos...">' + Utils.escapeHtml(d.procedimentos || '') + '</textarea></div>';
+        html += '</div></div>';
+    }
+    container.innerHTML = html;
+}
     /* ---- Tags ---- */
     function adicionarTag() {
         var input = document.getElementById('input-nova-tag');
@@ -486,7 +485,7 @@
     }
 
     /* ---- Salvar Paciente SEGURO ---- */
-    async function salvarPaciente() {
+async function salvarPaciente() {
     if (!validarDocumento()) { Toast.mostrar('Documento invalido', 'error'); return; }
 
     var docValor = elVal('input-documento').replace(/\D/g, '');
@@ -499,6 +498,7 @@
         pedidoCore: demandasTemp[0] ? demandasTemp[0].pedidoCore : '',
         pedidoSisreg: demandasTemp[0] ? demandasTemp[0].pedidoSisreg : '',
         dataProcedimento: demandasTemp[0] ? demandasTemp[0].dataProcedimento : '',
+        cidadeDestino: demandasTemp[0] ? demandasTemp[0].cidadeDestino : '',
         dataEntrada: elVal('input-data'),
         prioridade: elVal('select-prioridade'),
         sistema: elVal('select-sistema'),
@@ -507,6 +507,7 @@
     };
 
     if (!demanda.especialidade) { Toast.mostrar('Especialidade obrigatoria', 'error'); return; }
+    if (!demanda.cidadeDestino) { Toast.mostrar('Cidade destino obrigatoria', 'error'); return; }
 
     var dados = {
         nome: nome,
@@ -526,7 +527,6 @@
 
     try {
         if (editandoId !== null) {
-            // Modo edição: atualiza dados pessoais + adiciona NOVO procedimento
             await API.atualizarPaciente(editandoId, {
                 nome: dados.nome, documento: dados.documento, cidade: dados.cidade,
                 nomeMae: dados.nomeMae, nascimento: dados.nascimento,
@@ -783,13 +783,13 @@ function filtrarPacientes() {
     renderizarTabela(filtrados);
 }
 
-    function renderizarTabela(procedimentos) {
+ function renderizarTabela(procedimentos) {
     var tbody = document.getElementById('tbody-pacientes');
     if (!tbody) return;
     tbody.innerHTML = '';
     elSet('total-resultados', procedimentos.length);
     if (!procedimentos.length) { 
-        tbody.innerHTML = '<tr><td colspan="11" style="text-align:center;padding:40px;color:var(--color-text-light);">📋 Nenhum procedimento</td></tr>'; 
+        tbody.innerHTML = '<tr><td colspan="12" style="text-align:center;padding:40px;color:var(--color-text-light);">📋 Nenhum procedimento</td></tr>'; 
         return; 
     }
 
@@ -808,18 +808,19 @@ function filtrarPacientes() {
         else if (p.sistema === 'sisreg') sisBadge = '<span class="sistema-badge sistema-sisreg">Sisreg</span>';
         else if (p.sistema === 'ambos') sisBadge = '<span class="sistema-badge sistema-core">Core</span> <span class="sistema-badge sistema-sisreg">Sisreg</span>';
 
-               tr.innerHTML = '<td>' + (p.nome || '-') + '</td>' +
+        tr.innerHTML = '<td>' + (p.nome || '-') + '</td>' +
             '<td style="font-size:.82em;">' + doc + '</td>' +
             '<td><strong>' + (p.especialidade || '-') + '</strong></td>' +
+            '<td>' + (p.cidade_origem || '-') + '</td>' +
+            '<td><strong>' + (p.cidade_destino || '-') + '</strong></td>' +
             '<td>' + Utils.formatarData(p.data_entrada) + '</td>' +
             '<td>' + Utils.formatarData(p.data_procedimento) + '</td>' +
-            '<td>' + (p.cidade || '-') + '</td>' +
             '<td><span class="prioridade-badge prioridade-' + (p.prioridade || '') + '">' + (RelatorioManager.LABELS.prioridade[p.prioridade] || '') + '</span></td>' +
             '<td><span class="status-badge status-' + (p.status || '') + '">' + (LABELS_STATUS[p.status] || p.status || '') + '</span></td>' +
             '<td>' + sisBadge + '</td>' +
             '<td class="dias-cell ' + dc + '">' + dias + 'd</td>' +
             '<td class="acoes-cell">' +
-            '<button class="btn-acao btn-detalhes" onclick="App.verPaciente(' + p.paciente_id + ')" title="Ver detalhes completos">👁️</button>' +
+            '<button class="btn-acao btn-detalhes" onclick="App.verPaciente(' + p.paciente_id + ')" title="Ver detalhes">👁️</button>' +
             '<button class="btn-acao btn-editar" onclick="App.editarProcedimento(' + p.id + ')" title="Editar">✏️</button>' +
             '<button class="btn-acao btn-excluir" onclick="App.excluirProcedimentoDireto(' + p.id + ')" title="Excluir">🗑️</button>' +
             '<button class="btn-acao btn-copiar" onclick="App.editarPaciente(' + p.paciente_id + ')" title="Novo Procedimento">➕</button>' +
@@ -1270,44 +1271,66 @@ function filtrarPacientes() {
     }
 
     /* ---- Edicao de Procedimento ---- */
-async function editarProcedimento(procedimentoId) {
-    try {
-        // Busca o procedimento na lista cacheada
-        var proc = null;
-        for (var i = 0; i < _todosPacientesCache.length; i++) {
-            if (_todosPacientesCache[i].id === procedimentoId) {
-                proc = _todosPacientesCache[i];
-                break;
-            }
-        }
-        if (!proc) { Toast.mostrar('Procedimento nao encontrado', 'error'); return; }
-        
-        // Preenche o modal
-        var setVal = function(id, val) { var el = document.getElementById(id); if (el) el.value = val || ''; };
-        setVal('edit-proc-id', proc.id);
-        setVal('edit-proc-paciente-id', proc.paciente_id);
-        setVal('edit-proc-nome', proc.nome);
-        var doc = proc.documento_valor ? ((proc.documento_tipo || '').toUpperCase() + ': ' + proc.documento_valor) : '-';
-        setVal('edit-proc-doc', doc);
-        setVal('edit-proc-especialidade', proc.especialidade);
-        setVal('edit-proc-data-entrada', proc.data_entrada);
-        setVal('edit-proc-data-procedimento', proc.data_procedimento);
-        setVal('edit-proc-descricao', proc.procedimentos_desc);
-        setVal('edit-proc-prioridade', proc.prioridade);
-        setVal('edit-proc-status', proc.status);
-        setVal('edit-proc-sistema', proc.sistema);
-        setVal('edit-proc-medico', proc.medico);
-        setVal('edit-proc-unidade', proc.unidade);
-        setVal('edit-proc-core', proc.pedido_core);
-        setVal('edit-proc-sisreg', proc.pedido_sisreg);
-        setVal('edit-proc-liberacao', proc.data_liberacao);
-        setVal('edit-proc-retorno', proc.data_retorno);
-        setVal('edit-proc-finalizacao', proc.data_finalizacao);
-        
-        abrirModal('modal-editar-procedimento');
-    } catch (err) {
-        Toast.mostrar('Erro ao abrir edicao: ' + err.message, 'error');
+function editarProcedimento(procId) {
+    var proc = null;
+    for (var i = 0; i < _todosPacientesCache.length; i++) {
+        if (_todosPacientesCache[i].id === procId) { proc = _todosPacientesCache[i]; break; }
     }
+    if (!proc) { Toast.mostrar('Procedimento nao encontrado', 'error'); return; }
+
+    var setVal = function(id, val) { var el = document.getElementById(id); if (el) el.value = val || ''; };
+    setVal('edit-proc-id', proc.id);
+    setVal('edit-proc-nome', proc.nome);
+    var doc = proc.documento_valor ? ((proc.documento_tipo || '').toUpperCase() + ': ' + proc.documento_valor) : '-';
+    setVal('edit-proc-doc', doc);
+    setVal('edit-proc-especialidade', proc.especialidade);
+    setVal('edit-proc-cidade-destino', proc.cidade_destino);
+    setVal('edit-proc-data-entrada', proc.data_entrada);
+    setVal('edit-proc-data-procedimento', proc.data_procedimento);
+    setVal('edit-proc-descricao', proc.procedimentos_desc);
+    setVal('edit-proc-core', proc.pedido_core);
+    setVal('edit-proc-sisreg', proc.pedido_sisreg);
+    setVal('edit-proc-prioridade', proc.prioridade);
+    setVal('edit-proc-status', proc.status);
+    setVal('edit-proc-sistema', proc.sistema);
+    setVal('edit-proc-medico', proc.medico);
+    setVal('edit-proc-unidade', proc.unidade);
+    setVal('edit-proc-liberacao', proc.data_liberacao);
+    setVal('edit-proc-retorno', proc.data_retorno);
+    setVal('edit-proc-finalizacao', proc.data_finalizacao);
+
+    abrirModal('modal-editar-procedimento');
+}
+
+async function salvarEdicaoProcedimento() {
+    var id = parseInt(elVal('edit-proc-id'));
+    if (!id) { Toast.mostrar('ID invalido', 'error'); return; }
+
+    var dados = {
+        especialidade: elVal('edit-proc-especialidade'),
+        cidadeDestino: elVal('edit-proc-cidade-destino'),
+        dataEntrada: elVal('edit-proc-data-entrada'),
+        dataProcedimento: elVal('edit-proc-data-procedimento'),
+        procedimentos: elVal('edit-proc-descricao'),
+        pedidoCore: elVal('edit-proc-core'),
+        pedidoSisreg: elVal('edit-proc-sisreg'),
+        prioridade: elVal('edit-proc-prioridade'),
+        status: elVal('edit-proc-status'),
+        sistema: elVal('edit-proc-sistema'),
+        medico: elVal('edit-proc-medico'),
+        unidade: elVal('edit-proc-unidade'),
+        dataLiberacao: elVal('edit-proc-liberacao'),
+        dataRetorno: elVal('edit-proc-retorno'),
+        dataFinalizacao: elVal('edit-proc-finalizacao')
+    };
+
+    try {
+        await API.atualizarProcedimento(id, dados);
+        Toast.mostrar('Procedimento atualizado!', 'success');
+        fecharModal('modal-editar-procedimento');
+        await carregarLista();
+        await atualizarDashboard();
+    } catch (err) { Toast.mostrar('Erro: ' + err.message, 'error'); }
 }
 
 async function salvarEdicaoProcedimento() {

@@ -2,13 +2,6 @@ var express = require('express');
 var router = express.Router();
 var db = require('../database');
 
-function v(obj, chave, padrao) {
-    if (!obj) return padrao;
-    var val = obj[chave];
-    return (val === undefined || val === null) ? padrao : val;
-}
-
-// Monta paciente COMPLETO com lista de procedimentos isolados
 function montarPacienteCompleto(p) {
     if (!p) return null;
     var demandas = db.prepare('SELECT * FROM demandas WHERE paciente_id = ? ORDER BY data_entrada DESC, id DESC').all([p.id]) || [];
@@ -35,13 +28,12 @@ function montarPacienteCompleto(p) {
     };
 }
 
-// Lista TODOS os procedimentos (não pacientes) - ideal para controle de atrasos
+// Lista TODOS os procedimentos com dados do paciente
 router.get('/', function(req, res) {
     try {
-        var sql = "SELECT d.*, p.nome, p.documento_tipo, p.documento_valor, p.cidade, p.telefone, p.telefone2, p.nascimento, p.nome_mae, p.endereco FROM demandas d INNER JOIN pacientes p ON p.id = d.paciente_id ORDER BY d.data_entrada DESC, d.id DESC";
+        var sql = "SELECT d.*, p.nome, p.documento_tipo, p.documento_valor, p.cidade as cidade_origem, p.telefone FROM demandas d INNER JOIN pacientes p ON p.id = d.paciente_id ORDER BY d.data_entrada DESC, d.id DESC";
         var procedimentos = db.prepare(sql).all() || [];
 
-        // Agrupa tags por paciente
         var stmtTags = db.prepare('SELECT * FROM tags WHERE paciente_id = ?');
         var resultado = procedimentos.map(function(proc) {
             return {
@@ -50,7 +42,8 @@ router.get('/', function(req, res) {
                 nome: proc.nome,
                 documento_tipo: proc.documento_tipo,
                 documento_valor: proc.documento_valor,
-                cidade: proc.cidade,
+                cidade_origem: proc.cidade_origem,
+                cidade_destino: proc.cidade_destino,
                 telefone: proc.telefone,
                 especialidade: proc.especialidade,
                 procedimentos_desc: proc.procedimentos,
@@ -87,7 +80,6 @@ router.get('/:id', function(req, res) {
     }
 });
 
-// Busca paciente por nome (autocompletar)
 router.get('/buscar-nome', function(req, res) {
     try {
         var termo = (req.query.q || '').trim();
@@ -110,7 +102,6 @@ router.post('/', function(req, res) {
         var docValor = d.documento ? (d.documento.valor || '').replace(/\D/g, '') : '';
         var docTipo = d.documento ? (d.documento.tipo || 'cpf') : 'cpf';
 
-        // Verifica se paciente já existe pelo documento
         var existente = null;
         if (docValor) {
             existente = db.prepare('SELECT id FROM pacientes WHERE documento_valor = ? AND documento_tipo = ?').get([docValor, docTipo]);
@@ -119,10 +110,8 @@ router.post('/', function(req, res) {
         var pacienteId;
 
         if (existente) {
-            // Paciente já existe → apenas adiciona novo procedimento
             pacienteId = existente.id;
         } else {
-            // Cria novo paciente
             var resultPac = db.prepare(
                 'INSERT INTO pacientes (nome, documento_tipo, documento_valor, cidade, nome_mae, nascimento, telefone, telefone2, endereco) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)'
             ).run([
@@ -139,10 +128,9 @@ router.post('/', function(req, res) {
 
         if (!pacienteId) return res.status(500).json({ erro: 'Nao foi possivel criar/recuperar paciente' });
 
-        // Insere NOVO procedimento isolado
         var dem = d.demanda || {};
         var resultDem = db.prepare(
-            'INSERT INTO demandas (paciente_id, especialidade, procedimentos, pedido_core, pedido_sisreg, data_procedimento, data_entrada, prioridade, status, sistema, medico, unidade) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
+            'INSERT INTO demandas (paciente_id, especialidade, procedimentos, pedido_core, pedido_sisreg, data_procedimento, data_entrada, prioridade, status, sistema, medico, unidade, cidade_destino) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
         ).run([
             pacienteId,
             dem.especialidade || '',
@@ -155,14 +143,14 @@ router.post('/', function(req, res) {
             'aguardando',
             dem.sistema || 'core',
             dem.medico || '',
-            dem.unidade || ''
+            dem.unidade || '',
+            dem.cidadeDestino || ''
         ]);
 
         var demandaId = resultDem.lastInsertRowid;
         db.prepare('INSERT INTO historico_status (demanda_id, status) VALUES (?, ?)').run([demandaId, 'aguardando']);
 
         if (d.tags && Array.isArray(d.tags)) {
-            // Remove tags antigas e reinsere (tags são do paciente)
             db.prepare('DELETE FROM tags WHERE paciente_id = ?').run([pacienteId]);
             for (var i = 0; i < d.tags.length; i++) {
                 db.prepare('INSERT INTO tags (paciente_id, nome, cor) VALUES (?, ?, ?)').run([pacienteId, d.tags[i].nome || '', d.tags[i].cor || 'azul']);
@@ -181,7 +169,6 @@ router.post('/', function(req, res) {
     }
 });
 
-// Atualiza DADOS PESSOAIS do paciente (não mexe em procedimentos)
 router.put('/:id', function(req, res) {
     try {
         var id = Number(req.params.id);
@@ -217,7 +204,6 @@ router.put('/:id', function(req, res) {
     }
 });
 
-// Adiciona NOVO procedimento a paciente existente
 router.post('/:id/procedimento', function(req, res) {
     try {
         var id = Number(req.params.id);
@@ -226,7 +212,7 @@ router.post('/:id/procedimento', function(req, res) {
 
         var dem = req.body || {};
         var result = db.prepare(
-            'INSERT INTO demandas (paciente_id, especialidade, procedimentos, pedido_core, pedido_sisreg, data_procedimento, data_entrada, prioridade, status, sistema, medico, unidade) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
+            'INSERT INTO demandas (paciente_id, especialidade, procedimentos, pedido_core, pedido_sisreg, data_procedimento, data_entrada, prioridade, status, sistema, medico, unidade, cidade_destino) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
         ).run([
             id,
             dem.especialidade || '',
@@ -239,7 +225,8 @@ router.post('/:id/procedimento', function(req, res) {
             'aguardando',
             dem.sistema || 'core',
             dem.medico || '',
-            dem.unidade || ''
+            dem.unidade || '',
+            dem.cidadeDestino || ''
         ]);
 
         db.prepare('INSERT INTO historico_status (demanda_id, status) VALUES (?, ?)').run([result.lastInsertRowid, 'aguardando']);
@@ -249,7 +236,6 @@ router.post('/:id/procedimento', function(req, res) {
     }
 });
 
-// Atualiza STATUS/DADOS de um procedimento específico
 router.put('/procedimento/:id', function(req, res) {
     try {
         var id = Number(req.params.id);
@@ -258,7 +244,7 @@ router.put('/procedimento/:id', function(req, res) {
         if (!atual) return res.status(404).json({ erro: 'Procedimento nao encontrado' });
 
         db.prepare(
-            "UPDATE demandas SET especialidade=?, procedimentos=?, pedido_core=?, pedido_sisreg=?, data_procedimento=?, prioridade=?, status=?, sistema=?, medico=?, unidade=?, data_liberacao=?, data_retorno=?, data_finalizacao=? WHERE id=?"
+            "UPDATE demandas SET especialidade=?, procedimentos=?, pedido_core=?, pedido_sisreg=?, data_procedimento=?, prioridade=?, status=?, sistema=?, medico=?, unidade=?, cidade_destino=?, data_liberacao=?, data_retorno=?, data_finalizacao=? WHERE id=?"
         ).run([
             d.especialidade !== undefined ? d.especialidade : atual.especialidade,
             d.procedimentos !== undefined ? d.procedimentos : atual.procedimentos,
@@ -270,6 +256,7 @@ router.put('/procedimento/:id', function(req, res) {
             d.sistema || atual.sistema,
             d.medico !== undefined ? d.medico : atual.medico,
             d.unidade !== undefined ? d.unidade : atual.unidade,
+            d.cidadeDestino !== undefined ? d.cidadeDestino : atual.cidade_destino,
             d.dataLiberacao !== undefined ? d.dataLiberacao : atual.data_liberacao,
             d.dataRetorno !== undefined ? d.dataRetorno : atual.data_retorno,
             d.dataFinalizacao !== undefined ? d.dataFinalizacao : atual.data_finalizacao,
@@ -304,7 +291,7 @@ router.delete('/:id', function(req, res) {
     }
 });
 
-// Stats por PROCEDIMENTO
+// Stats por PROCEDIMENTO - Dashboard usa cidade_destino
 router.get('/stats/dashboard', function(req, res) {
     var vazio = { total: 0, aguardando: 0, liberado: 0, retorno: 0, finalizado: 0, tempoMedio: 0, taxaConclusao: 0, atencao: 0, prioridade: { azul: 0, verde: 0, amarelo: 0, vermelho: 0 }, sistema: { core: 0, sisreg: 0, ambos: 0 }, porMes: [], porCidade: [] };
     try {
@@ -328,7 +315,9 @@ router.get('/stats/dashboard', function(req, res) {
         var at = db.prepare("SELECT COUNT(*) as total FROM demandas WHERE status != 'finalizado' AND julianday('now','localtime') - julianday(data_entrada) > 30").get() || {};
 
         var porMes = db.prepare("SELECT strftime('%Y-%m', data_entrada) as mes, COUNT(*) as total FROM demandas WHERE data_entrada != '' AND data_entrada >= date('now','localtime','-6 months') GROUP BY mes ORDER BY mes").all() || [];
-        var porCidade = db.prepare("SELECT p.cidade, COUNT(*) as total FROM demandas d INNER JOIN pacientes p ON p.id = d.paciente_id WHERE p.cidade != '' GROUP BY p.cidade ORDER BY total DESC LIMIT 10").all() || [];
+        
+        // USA cidade_destino (para onde saiu o atendimento)
+        var porCidade = db.prepare("SELECT cidade_destino as cidade, COUNT(*) as total FROM demandas WHERE cidade_destino != '' GROUP BY cidade_destino ORDER BY total DESC LIMIT 10").all() || [];
 
         var totalPac = s.total || 0;
         var totalFin = s.finalizado || 0;
@@ -360,12 +349,24 @@ router.get('/alertas/lista', function(req, res) {
     }
 });
 
+// Lista combina cidades de origem e destino para autocomplete
 router.get('/listas/cidades', function(req, res) {
-    try { res.json((db.prepare("SELECT DISTINCT cidade FROM pacientes WHERE cidade != '' ORDER BY cidade").all() || []).map(function(c) { return c.cidade; })); } catch (e) { res.json([]); }
+    try { 
+        var cidadesDestino = db.prepare("SELECT DISTINCT cidade_destino as cidade FROM demandas WHERE cidade_destino != ''").all() || [];
+        var cidadesOrigem = db.prepare("SELECT DISTINCT cidade FROM pacientes WHERE cidade != ''").all() || [];
+        
+        var todas = {};
+        cidadesDestino.forEach(function(c) { todas[c.cidade] = true; });
+        cidadesOrigem.forEach(function(c) { todas[c.cidade] = true; });
+        
+        res.json(Object.keys(todas).sort());
+    } catch (e) { res.json([]); }
 });
+
 router.get('/listas/especialidades', function(req, res) {
     try { res.json((db.prepare("SELECT DISTINCT especialidade FROM demandas WHERE especialidade != '' ORDER BY especialidade").all() || []).map(function(e) { return e.especialidade; })); } catch (e) { res.json([]); }
 });
+
 router.get('/listas/tags', function(req, res) {
     try { res.json(db.prepare("SELECT DISTINCT nome, cor FROM tags ORDER BY nome").all() || []); } catch (e) { res.json([]); }
 });

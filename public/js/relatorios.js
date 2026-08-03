@@ -30,26 +30,26 @@ var RelatorioManager = (function() {
     return {
         LABELS: LABELS,
 
-        exibirRelatorio: function(procedimentos, tipo, mes, ano, cidade, status, sistema) {
+            exibirRelatorio: function(procedimentos, tipo, mes, ano, cidade, status, sistema) {
             var div = document.getElementById('resultado-relatorio');
             if (!div) return;
             var stats = _calcularStats(procedimentos);
             var titulo = tipo === 'mensal' ? 'Relatorio Mensal - ' + (MESES_FULL[parseInt(mes) - 1] || '') + '/' + ano : 'Relatorio Anual - ' + ano;
             var filtrosTexto = [];
-            if (cidade) filtrosTexto.push('Cidade: ' + cidade);
+            if (cidade) filtrosTexto.push('Cidade Destino: ' + cidade);
             if (status) filtrosTexto.push('Status: ' + (LABELS.status[status] || status));
             if (sistema) filtrosTexto.push('Sistema: ' + sistema);
 
             if (!procedimentos || !procedimentos.length) {
-                div.innerHTML = '<div class="mensagem-vazia"><div class="icone-vazio">😕</div><p>Nenhum procedimento encontrado para os filtros selecionados.</p><p style="font-size:.85em;margin-top:10px;">Verifique se existem cadastros no periodo escolhido.</p></div>';
+                div.innerHTML = '<div class="mensagem-vazia"><div class="icone-vazio">😕</div><p>Nenhum procedimento encontrado.</p></div>';
                 return;
             }
 
-            var html = '<div style="margin-bottom:20px;"><h3 style="font-size:1.3em;margin-bottom:5px;">📊 ' + titulo + '</h3>';
+            var html = '<div style="margin-bottom:20px;"><h3 style="font-size:1.3em;">📊 ' + titulo + '</h3>';
             if (filtrosTexto.length) html += '<p style="color:var(--color-text-light);font-size:.9em;">' + filtrosTexto.join(' | ') + '</p>';
-            html += '<p style="color:var(--color-text-light);font-size:.85em;margin-top:5px;">Total: <strong>' + stats.total + '</strong> | Aguardando: ' + stats.aguardando + ' | Liberados: ' + stats.liberado + ' | Retorno: ' + stats.retorno + ' | Finalizados: ' + stats.finalizado + '</p></div>';
+            html += '<p style="color:var(--color-text-light);font-size:.85em;">Total: <strong>' + stats.total + '</strong> | Aguardando: ' + stats.aguardando + ' | Liberados: ' + stats.liberado + ' | Retorno: ' + stats.retorno + ' | Finalizados: ' + stats.finalizado + '</p></div>';
             
-            html += '<div class="tabela-container"><table><thead><tr><th>Paciente</th><th>Doc</th><th>Especialidade</th><th>Entrada</th><th>Data Proc.</th><th>Cidade</th><th>Prioridade</th><th>Status</th><th>Sistema</th></tr></thead><tbody>';
+            html += '<div class="tabela-container"><table><thead><tr><th>Paciente</th><th>Doc</th><th>Especialidade</th><th>Cidade Origem</th><th>Cidade Destino</th><th>Entrada</th><th>Data Proc.</th><th>Prioridade</th><th>Status</th></tr></thead><tbody>';
 
             for (var i = 0; i < procedimentos.length; i++) {
                 var p = procedimentos[i];
@@ -59,12 +59,12 @@ var RelatorioManager = (function() {
                 html += '<td>' + (p.nome || '-') + '</td>';
                 html += '<td style="font-size:.82em;">' + doc + '</td>';
                 html += '<td><strong>' + (p.especialidade || '-') + '</strong></td>';
+                html += '<td>' + (p.cidade_origem || '-') + '</td>';
+                html += '<td><strong>' + (p.cidade_destino || '-') + '</strong></td>';
                 html += '<td>' + _formatarData(p.data_entrada) + '</td>';
                 html += '<td>' + _formatarData(p.data_procedimento) + '</td>';
-                html += '<td>' + (p.cidade || '-') + '</td>';
                 html += '<td><span class="prioridade-badge prioridade-' + (p.prioridade || '') + '">' + (LABELS.prioridade[p.prioridade] || '') + '</span></td>';
                 html += '<td><span class="status-badge status-' + (p.status || '') + '">' + (LABELS.status[p.status] || p.status || '') + '</span></td>';
-                html += '<td>' + (p.sistema || '-') + '</td>';
                 html += '</tr>';
             }
 
@@ -125,7 +125,8 @@ var RelatorioManager = (function() {
                 html += '<div class="ficha-campo"><label>DOC</label><span>' + doc + '</span></div>';
                 html += '<div class="ficha-campo"><label>ENTRADA</label><span>' + _formatarData(p.data_entrada) + ' (' + dias + 'd)</span></div>';
                 html += '<div class="ficha-campo"><label>DATA PROC</label><span>' + _formatarData(p.data_procedimento) + '</span></div>';
-                html += '<div class="ficha-campo"><label>CIDADE</label><span>' + (p.cidade || '-') + '</span></div>';
+                html += '<div class="ficha-campo"><label>CIDADE ORIGEM</label><span>' + (p.cidade_origem || '-') + '</span></div>';
+                html += '<div class="ficha-campo"><label>CIDADE DESTINO</label><span><strong>' + (p.cidade_destino || '-') + '</strong></span></div>';
                 html += '<div class="ficha-campo"><label>PRIORIDADE</label><span>' + (LABELS.prioridade[p.prioridade] || '-') + '</span></div>';
                 html += '<div class="ficha-campo"><label>STATUS</label><span>' + (LABELS.status[p.status] || '-') + '</span></div>';
                 html += '<div class="ficha-campo"><label>SISTEMA</label><span>' + (p.sistema || '-') + '</span></div>';
@@ -198,3 +199,4 @@ var RelatorioManager = (function() {
         }
     };
 })();
+        

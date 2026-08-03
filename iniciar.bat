@@ -46,7 +46,7 @@ echo O navegador sera aberto automaticamente.
 echo Para parar, pressione Ctrl+C nesta janela.
 echo.
 
-start "" cmd /c "timeout /t 2 /nobreak >nul && start http://localhost:3000"
+start "" cmd /c "timeout /t 2 /nobreak >nul && start http://localhost:3300"
 
 node server/index.js
 

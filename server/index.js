@@ -8,7 +8,7 @@ var path = require('path');
 var database = require('./database');
 
 var app = express();
-var PORT = process.env.PORT || 3000;
+var PORT = process.env.PORT || 3300;
 
 app.use(cors());
 app.use(express.json({ limit: '50mb' }));

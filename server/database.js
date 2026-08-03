@@ -1,10 +1,17 @@
+/* ================================================================
+   BANCO DE DADOS - SQLite via sql.js
+   ================================================================ */
+
 var initSqlJs = require('sql.js');
 var fs = require('fs');
 var path = require('path');
 
 var DB_PATH = path.join(__dirname, '..', 'dados', 'sgp.db');
 var dadosDir = path.dirname(DB_PATH);
-if (!fs.existsSync(dadosDir)) fs.mkdirSync(dadosDir, { recursive: true });
+
+if (!fs.existsSync(dadosDir)) {
+    fs.mkdirSync(dadosDir, { recursive: true });
+}
 
 var db = null;
 
@@ -75,8 +82,10 @@ function buscarTodos(sql, params) {
 
 async function inicializarBanco() {
     var SQL = await initSqlJs();
+
     if (fs.existsSync(DB_PATH)) {
-        db = new SQL.Database(fs.readFileSync(DB_PATH));
+        var buffer = fs.readFileSync(DB_PATH);
+        db = new SQL.Database(buffer);
         console.log('[DB] Banco carregado:', DB_PATH);
     } else {
         db = new SQL.Database();
@@ -85,7 +94,7 @@ async function inicializarBanco() {
 
     db.run("PRAGMA foreign_keys = ON");
 
-    // Paciente = dados pessoais (sem status, sem prioridade, sem datas de procedimento)
+    // Paciente = dados pessoais (cidade = origem)
     db.run(
         "CREATE TABLE IF NOT EXISTS pacientes (" +
         "id INTEGER PRIMARY KEY AUTOINCREMENT, " +
@@ -101,7 +110,7 @@ async function inicializarBanco() {
         "data_cadastro TEXT NOT NULL DEFAULT (datetime('now','localtime')))"
     );
 
-    // Procedimento = demanda isolada com seu próprio ciclo de vida
+    // Procedimento = demanda isolada (cidade_destino = local do atendimento)
     db.run(
         "CREATE TABLE IF NOT EXISTS demandas (" +
         "id INTEGER PRIMARY KEY AUTOINCREMENT, " +
@@ -117,6 +126,7 @@ async function inicializarBanco() {
         "sistema TEXT NOT NULL DEFAULT 'core', " +
         "medico TEXT DEFAULT '', " +
         "unidade TEXT DEFAULT '', " +
+        "cidade_destino TEXT DEFAULT '', " +
         "data_liberacao TEXT DEFAULT '', " +
         "data_retorno TEXT DEFAULT '', " +
         "data_finalizacao TEXT DEFAULT '', " +
@@ -131,6 +141,7 @@ async function inicializarBanco() {
         "ALTER TABLE demandas ADD COLUMN sistema TEXT DEFAULT 'core'",
         "ALTER TABLE demandas ADD COLUMN medico TEXT DEFAULT ''",
         "ALTER TABLE demandas ADD COLUMN unidade TEXT DEFAULT ''",
+        "ALTER TABLE demandas ADD COLUMN cidade_destino TEXT DEFAULT ''",
         "ALTER TABLE demandas ADD COLUMN data_liberacao TEXT DEFAULT ''",
         "ALTER TABLE demandas ADD COLUMN data_retorno TEXT DEFAULT ''",
         "ALTER TABLE demandas ADD COLUMN data_finalizacao TEXT DEFAULT ''"
@@ -147,6 +158,7 @@ async function inicializarBanco() {
     db.run("CREATE INDEX IF NOT EXISTS idx_dem_paciente ON demandas(paciente_id)");
     db.run("CREATE INDEX IF NOT EXISTS idx_dem_status ON demandas(status)");
     db.run("CREATE INDEX IF NOT EXISTS idx_dem_data ON demandas(data_entrada)");
+    db.run("CREATE INDEX IF NOT EXISTS idx_dem_cidade_destino ON demandas(cidade_destino)");
     db.run("CREATE INDEX IF NOT EXISTS idx_pac_documento ON pacientes(documento_valor)");
 
     salvar();

@@ -73,12 +73,13 @@
                     <div class="form-group"><label>Telefone 2</label><input type="text" id="input-telefone2" maxlength="15"></div>
                     <div class="form-group span-2"><label>Endereco</label><input type="text" id="input-endereco"></div>
                 </div>
-                <div class="form-titulo">🏥 Atendimento</div>
+                <                <!-- ATENDIMENTO - Dados do paciente (cidade de ORIGEM) -->
+                <div class="form-titulo">🏥 Dados do Paciente</div>
                 <div class="form-grid">
                     <div class="form-group"><label>Data Entrada <span class="obrigatorio">*</span></label><input type="date" id="input-data" required></div>
-                    <div class="form-group"><label>Cidade</label><input type="text" id="input-cidade" list="lista-cidades"></div>
-                    <div class="form-group"><label>Medico</label><input type="text" id="input-medico"></div>
-                    <div class="form-group"><label>Unidade</label><input type="text" id="input-unidade"></div>
+                    <div class="form-group"><label>Cidade (Origem/Moradia)</label><input type="text" id="input-cidade" list="lista-cidades" placeholder="Onde o paciente mora"></div>
+                    <div class="form-group"><label>Medico Solicitante</label><input type="text" id="input-medico"></div>
+                    <div class="form-group"><label>Unidade de Origem</label><input type="text" id="input-unidade"></div>
                 </div>
                 <div class="form-titulo">🎯 Classificacao</div>
                 <div class="form-grid">
@@ -213,9 +214,12 @@
             <div class="form-titulo">🏥 Procedimento</div>
             <div class="form-grid">
                 <div class="form-group span-2"><label>Especialidade</label><input type="text" id="edit-proc-especialidade"></div>
+                <div class="form-group"><label>Cidade Destino</label><input type="text" id="edit-proc-cidade-destino" list="lista-cidades" placeholder="Para onde vai"></div>
                 <div class="form-group"><label>Data Entrada</label><input type="date" id="edit-proc-data-entrada"></div>
                 <div class="form-group"><label>Data Procedimento</label><input type="date" id="edit-proc-data-procedimento"></div>
-                <div class="form-group span-2"><label>Procedimentos (descricao)</label><textarea id="edit-proc-descricao" rows="3"></textarea></div>
+                <div class="form-group span-2"><label>Descricao</label><textarea id="edit-proc-descricao" rows="3"></textarea></div>
+                <div class="form-group"><label>Pedido Core</label><input type="text" id="edit-proc-core"></div>
+                <div class="form-group"><label>Pedido Sisreg</label><input type="text" id="edit-proc-sisreg"></div>
             </div>
             
             <div class="form-titulo">🎯 Classificacao</div>
