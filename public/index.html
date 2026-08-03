@@ -73,7 +73,7 @@
                     <div class="form-group"><label>Telefone 2</label><input type="text" id="input-telefone2" maxlength="15"></div>
                     <div class="form-group span-2"><label>Endereco</label><input type="text" id="input-endereco"></div>
                 </div>
-                <                <!-- ATENDIMENTO - Dados do paciente (cidade de ORIGEM) -->
+              <!-- ATENDIMENTO - Dados do paciente (cidade de ORIGEM) -->
                 <div class="form-titulo">🏥 Dados do Paciente</div>
                 <div class="form-grid">
                     <div class="form-group"><label>Data Entrada <span class="obrigatorio">*</span></label><input type="date" id="input-data" required></div>
@@ -128,22 +128,26 @@
                 <div class="filtro-group filtro-acoes"><label>&nbsp;</label><button type="button" id="btn-limpar-filtros" class="btn btn-secondary btn-small">🔄 Limpar</button></div>
             </div>
             <div class="contador-resultados"><p>📋 Total: <strong id="total-resultados">0</strong></p></div>
-            <div class="tabela-container">
+                     <div class="tabela-container">
                 <table>
-                    <thead><tr>
-                        <th>Paciente</th>
-                        <th>Documento</th>
-                        <th>Especialidade</th>
-                        <th>Entrada</th>
-                        <th>Data Proc.</th>
-                        <th>Cidade</th>
-                        <th>Prioridade</th>
-                        <th>Status</th>
-                        <th>Sistema</th>
-                        <th>Dias</th>
-                        <th>Acoes</th>
-                    </tr></thead>
-                <tbody id="tbody-pacientes"></tbody></table></div>
+                    <thead>
+                        <tr>
+                            <th>Paciente</th>
+                            <th>Documento</th>
+                            <th>Especialidade</th>
+                            <th>Data Entrada</th>
+                            <th>Data Proced.</th>
+                            <th>Cidade Destino</th>
+                            <th>Prioridade</th>
+                            <th>Status</th>
+                            <th>Sistema</th>
+                            <th>Dias</th>
+                            <th>Acoes</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tbody-pacientes"></tbody>
+                </table>
+            </div>
         </section>
 
         <!-- RELATORIOS -->
@@ -194,84 +198,8 @@
     <div id="modal-detalhes" class="modal"><div class="modal-content modal-large"><div class="modal-header"><h3>👤 Detalhes</h3><button class="modal-close" data-modal="modal-detalhes">&times;</button></div><div class="modal-body" id="conteudo-detalhes"></div><div class="modal-footer"><button class="btn btn-secondary" data-modal="modal-detalhes">Fechar</button><button class="btn btn-primary" id="btn-imprimir-ficha">📄 Gerar PDF</button></div></div></div>
     <div id="modal-retorno" class="modal"><div class="modal-content modal-large"><div class="modal-header"><h3>🔄 <span id="modal-retorno-titulo">Novo Retorno</span></h3><button class="modal-close" data-modal="modal-retorno">&times;</button></div><div class="modal-body"><input type="hidden" id="retorno-paciente-id"><div class="form-titulo">👤 Dados</div><div class="retorno-resumo"><div class="retorno-item-resumo"><label>Nome</label><div id="retorno-nome">-</div></div><div class="retorno-item-resumo"><label>Cidade</label><div id="retorno-cidade">-</div></div><div class="retorno-item-resumo"><label>Entrada</label><div id="retorno-data-cadastro">-</div></div><div class="retorno-item-resumo"><label>Prioridade</label><div id="retorno-prioridade">-</div></div><div class="retorno-item-resumo"><label>Sistema</label><div id="retorno-sistema">-</div></div><div class="retorno-item-resumo"><label>Especialista</label><div id="retorno-especialista">-</div></div></div><div class="form-titulo">📅 Data</div><div class="form-grid"><div class="form-group"><label>Data *</label><input type="date" id="retorno-data" required></div></div><div class="form-titulo">📋 Demandas</div><div id="retorno-lista-demandas" class="lista-demandas"></div><button type="button" class="btn-add-demanda" id="btn-add-demanda-retorno" style="margin-top:10px;">+ Demanda</button><div class="form-titulo" style="margin-top:20px;">📝 Obs</div><textarea id="retorno-observacao" rows="3"></textarea></div><div class="modal-footer"><button class="btn btn-secondary" data-modal="modal-retorno">Cancelar</button><button class="btn btn-primary" id="btn-confirmar-retorno">✅ Confirmar</button></div></div></div>
     <div id="modal-notificacoes" class="modal"><div class="modal-content"><div class="modal-header"><h3>🔔 Notificacoes</h3><button class="modal-close" data-modal="modal-notificacoes">&times;</button></div><div class="modal-body" id="conteudo-notificacoes"></div><div class="modal-footer"><button class="btn btn-secondary" data-modal="modal-notificacoes">Fechar</button></div></div></div>
-    <!-- MODAL EDITAR PROCEDIMENTO -->
-<div id="modal-editar-procedimento" class="modal">
-    <div class="modal-content modal-large">
-        <div class="modal-header">
-            <h3>✏️ Editar Procedimento</h3>
-            <button class="modal-close" data-modal="modal-editar-procedimento">&times;</button>
-        </div>
-        <div class="modal-body">
-            <input type="hidden" id="edit-proc-id">
-            <input type="hidden" id="edit-proc-paciente-id">
-            
-            <div class="form-titulo">👤 Paciente</div>
-            <div class="form-grid">
-                <div class="form-group span-2"><label>Nome</label><input type="text" id="edit-proc-nome" readonly></div>
-                <div class="form-group"><label>Documento</label><input type="text" id="edit-proc-doc" readonly></div>
-            </div>
-            
-            <div class="form-titulo">🏥 Procedimento</div>
-            <div class="form-grid">
-                <div class="form-group span-2"><label>Especialidade</label><input type="text" id="edit-proc-especialidade"></div>
-                <div class="form-group"><label>Cidade Destino</label><input type="text" id="edit-proc-cidade-destino" list="lista-cidades" placeholder="Para onde vai"></div>
-                <div class="form-group"><label>Data Entrada</label><input type="date" id="edit-proc-data-entrada"></div>
-                <div class="form-group"><label>Data Procedimento</label><input type="date" id="edit-proc-data-procedimento"></div>
-                <div class="form-group span-2"><label>Descricao</label><textarea id="edit-proc-descricao" rows="3"></textarea></div>
-                <div class="form-group"><label>Pedido Core</label><input type="text" id="edit-proc-core"></div>
-                <div class="form-group"><label>Pedido Sisreg</label><input type="text" id="edit-proc-sisreg"></div>
-            </div>
-            
-            <div class="form-titulo">🎯 Classificacao</div>
-            <div class="form-grid">
-                <div class="form-group"><label>Prioridade</label>
-                    <select id="edit-proc-prioridade">
-                        <option value="azul">🔵 Azul</option>
-                        <option value="verde">🟢 Verde</option>
-                        <option value="amarelo">🟡 Amarelo</option>
-                        <option value="vermelho">🔴 Vermelho</option>
-                    </select>
-                </div>
-                <div class="form-group"><label>Status</label>
-                    <select id="edit-proc-status">
-                        <option value="aguardando">⏳ Aguardando</option>
-                        <option value="liberado">✅ Liberado</option>
-                        <option value="retorno">🔄 Retorno</option>
-                        <option value="finalizado">🏁 Finalizado</option>
-                    </select>
-                </div>
-                <div class="form-group"><label>Sistema</label>
-                    <select id="edit-proc-sistema">
-                        <option value="core">Core</option>
-                        <option value="sisreg">Sisreg</option>
-                        <option value="ambos">Ambos</option>
-                    </select>
-                </div>
-                <div class="form-group"><label>Medico</label><input type="text" id="edit-proc-medico"></div>
-                <div class="form-group"><label>Unidade</label><input type="text" id="edit-proc-unidade"></div>
-            </div>
-            
-            <div class="form-titulo">📋 Codigos</div>
-            <div class="form-grid">
-                <div class="form-group"><label>Pedido Core</label><input type="text" id="edit-proc-core"></div>
-                <div class="form-group"><label>Pedido Sisreg</label><input type="text" id="edit-proc-sisreg"></div>
-            </div>
-            
-            <div class="form-titulo">📅 Datas de Acompanhamento</div>
-            <div class="form-grid">
-                <div class="form-group"><label>Data Liberacao</label><input type="date" id="edit-proc-liberacao"></div>
-                <div class="form-group"><label>Data Retorno</label><input type="date" id="edit-proc-retorno"></div>
-                <div class="form-group"><label>Data Finalizacao</label><input type="date" id="edit-proc-finalizacao"></div>
-            </div>
-        </div>
-        <div class="modal-footer">
-            <button class="btn btn-danger" onclick="App.excluirProcedimentoDoModal()">🗑️ Excluir</button>
-            <button class="btn btn-secondary" data-modal="modal-editar-procedimento">Cancelar</button>
-            <button class="btn btn-primary" onclick="App.salvarEdicaoProcedimento()">💾 Salvar</button>
-        </div>
-    </div>
-</div>
-        <!-- MODAL EDITAR PROCEDIMENTO -->
+    
+       <!-- MODAL EDITAR PROCEDIMENTO -->
     <div id="modal-editar-procedimento" class="modal">
         <div class="modal-content modal-large">
             <div class="modal-header">
@@ -280,42 +208,106 @@
             </div>
             <div class="modal-body">
                 <input type="hidden" id="edit-proc-id">
+                
                 <div class="form-titulo">👤 Paciente</div>
                 <div class="form-grid">
-                    <div class="form-group span-2"><label>Nome</label><input type="text" id="edit-proc-nome" readonly></div>
-                    <div class="form-group"><label>Documento</label><input type="text" id="edit-proc-doc" readonly></div>
+                    <div class="form-group span-2">
+                        <label>Nome</label>
+                        <input type="text" id="edit-proc-nome" readonly>
+                    </div>
+                    <div class="form-group">
+                        <label>Documento</label>
+                        <input type="text" id="edit-proc-doc" readonly>
+                    </div>
                 </div>
+                
                 <div class="form-titulo">🏥 Procedimento</div>
                 <div class="form-grid">
-                    <div class="form-group span-2"><label>Especialidade</label><input type="text" id="edit-proc-especialidade"></div>
-                    <div class="form-group"><label>Data Entrada</label><input type="date" id="edit-proc-data-entrada"></div>
-                    <div class="form-group"><label>Data Procedimento</label><input type="date" id="edit-proc-data-procedimento"></div>
-                    <div class="form-group span-2"><label>Descricao</label><textarea id="edit-proc-descricao" rows="3"></textarea></div>
-                    <div class="form-group"><label>Pedido Core</label><input type="text" id="edit-proc-core"></div>
-                    <div class="form-group"><label>Pedido Sisreg</label><input type="text" id="edit-proc-sisreg"></div>
+                    <div class="form-group span-2">
+                        <label>Especialidade</label>
+                        <input type="text" id="edit-proc-especialidade">
+                    </div>
+                    <div class="form-group">
+                        <label>Cidade Destino <span style="color:var(--color-danger);font-size:.8em;">*</span></label>
+                        <input type="text" id="edit-proc-cidade-destino" list="lista-cidades" placeholder="Ex: Sao Paulo">
+                    </div>
+                    <div class="form-group">
+                        <label>Data Entrada</label>
+                        <input type="date" id="edit-proc-data-entrada">
+                    </div>
+                    <div class="form-group">
+                        <label>Data Procedimento</label>
+                        <input type="date" id="edit-proc-data-procedimento">
+                    </div>
+                    <div class="form-group">
+                        <label>Pedido Core</label>
+                        <input type="text" id="edit-proc-core">
+                    </div>
+                    <div class="form-group">
+                        <label>Pedido Sisreg</label>
+                        <input type="text" id="edit-proc-sisreg">
+                    </div>
+                    <div class="form-group span-2">
+                        <label>Descricao</label>
+                        <textarea id="edit-proc-descricao" rows="3"></textarea>
+                    </div>
                 </div>
-                <div class="form-titulo">🎯 Classificacao</div>
+                
+                <div class="form-titulo">🎯 Status</div>
                 <div class="form-grid">
-                    <div class="form-group"><label>Prioridade</label><select id="edit-proc-prioridade"><option value="azul">🔵 Azul</option><option value="verde">🟢 Verde</option><option value="amarelo">🟡 Amarelo</option><option value="vermelho">🔴 Vermelho</option></select></div>
-                    <div class="form-group"><label>Status</label><select id="edit-proc-status"><option value="aguardando">⏳ Aguardando</option><option value="liberado">✅ Liberado</option><option value="retorno">🔄 Retorno</option><option value="finalizado">🏁 Finalizado</option></select></div>
-                    <div class="form-group"><label>Sistema</label><select id="edit-proc-sistema"><option value="core">Core</option><option value="sisreg">Sisreg</option><option value="ambos">Ambos</option></select></div>
-                    <div class="form-group"><label>Medico</label><input type="text" id="edit-proc-medico"></div>
-                    <div class="form-group"><label>Unidade</label><input type="text" id="edit-proc-unidade"></div>
+                    <div class="form-group">
+                        <label>Status Atual</label>
+                        <select id="edit-proc-status">
+                            <option value="aguardando">⏳ Aguardando</option>
+                            <option value="liberado">✅ Liberado</option>
+                            <option value="retorno">🔄 Retorno</option>
+                            <option value="finalizado">🏁 Finalizado</option>
+                        </select>
+                    </div>
                 </div>
+                
                 <div class="form-titulo">📅 Acompanhamento</div>
                 <div class="form-grid">
-                    <div class="form-group"><label>Liberacao</label><input type="date" id="edit-proc-liberacao"></div>
-                    <div class="form-group"><label>Retorno</label><input type="date" id="edit-proc-retorno"></div>
-                    <div class="form-group"><label>Finalizacao</label><input type="date" id="edit-proc-finalizacao"></div>
+                    <div class="form-group">
+                        <label>Data Liberacao</label>
+                        <input type="date" id="edit-proc-liberacao">
+                    </div>
+                    <div class="form-group">
+                        <label>Data Retorno</label>
+                        <input type="date" id="edit-proc-retorno">
+                    </div>
+                    <div class="form-group">
+                        <label>Data Finalizacao</label>
+                        <input type="date" id="edit-proc-finalizacao">
+                    </div>
                 </div>
             </div>
-            <div class="modal-footer">
+                <div class="modal-footer">
                 <button class="btn btn-danger" onclick="App.excluirProcedimentoDoModal()">🗑️ Excluir</button>
+                <button class="btn btn-warning btn-small" onclick="App.testarCampoCidade()">🔍 Testar Campo</button>
                 <button class="btn btn-secondary" data-modal="modal-editar-procedimento">Cancelar</button>
                 <button class="btn btn-primary" onclick="App.salvarEdicaoProcedimento()">💾 Salvar</button>
+                </div>
+        </div>
+    </div>
+
+    <!-- MODAL DE NOTIFICAÇÕES (COMPLETO) -->
+    <div id="modal-notificacoes" class="modal">
+        <div class="modal-content modal-large">
+            <div class="modal-header">
+                <h3>🔔 Notificações e Alertas</h3>
+                <button class="modal-close" data-modal="modal-notificacoes">&times;</button>
+            </div>
+            <div class="modal-body" id="conteudo-notificacoes">
+                <p style="text-align:center;color:var(--color-text-light);padding:20px;">Carregando...</p>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" data-modal="modal-notificacoes">Fechar</button>
+                <button class="btn btn-primary" onclick="App.verAlertas()">Ver Aba de Alertas</button>
             </div>
         </div>
     </div>
+
         <!-- MODAL DETALHES DO PACIENTE -->
     <div id="modal-detalhes-paciente" class="modal">
         <div class="modal-content modal-large">

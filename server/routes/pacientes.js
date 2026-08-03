@@ -243,6 +243,40 @@ router.put('/procedimento/:id', function(req, res) {
         var atual = db.prepare('SELECT * FROM demandas WHERE id = ?').get([id]);
         if (!atual) return res.status(404).json({ erro: 'Procedimento nao encontrado' });
 
+        console.log('[SERVER] ===== ATUALIZANDO PROCEDIMENTO =====');
+        console.log('[SERVER] ID:', id);
+        console.log('[SERVER] Body recebido:', JSON.stringify(d, null, 2));
+        console.log('[SERVER] Status atual no banco:', atual.status);
+        console.log('[SERVER] Cidade atual no banco:', atual.cidade_destino);
+
+        // VALIDACAO SIMPLIFICADA
+        var novoStatus = d.status || atual.status;
+        var cidadeRecebida = d.cidadeDestino !== undefined ? (d.cidadeDestino || '').trim() : '';
+        var novaCidadeDestino = cidadeRecebida !== '' ? cidadeRecebida : (atual.cidade_destino || '');
+
+        console.log('[SERVER] Processando:');
+        console.log('[SERVER]   novoStatus:', novoStatus);
+        console.log('[SERVER]   cidadeRecebida:', cidadeRecebida);
+        console.log('[SERVER]   cidadeAnterior:', atual.cidade_destino);
+        console.log('[SERVER]   novaCidadeDestino:', novaCidadeDestino);
+
+        // Validacao apenas se for liberar E nao tiver cidade
+        if (novoStatus === 'liberado' && !novaCidadeDestino) {
+            console.log('[SERVER] ERRO: Tentando liberar sem cidade destino');
+            return res.status(400).json({ 
+                erro: 'Cidade destino e obrigatoria ao liberar o procedimento',
+                debug: {
+                    novoStatus: novoStatus,
+                    cidadeRecebida: cidadeRecebida,
+                    cidadeAnterior: atual.cidade_destino,
+                    novaCidadeDestino: novaCidadeDestino
+                }
+            });
+        }
+
+        console.log('[SERVER] Validacao OK, atualizando banco...');
+
+        // Atualiza banco
         db.prepare(
             "UPDATE demandas SET especialidade=?, procedimentos=?, pedido_core=?, pedido_sisreg=?, data_procedimento=?, prioridade=?, status=?, sistema=?, medico=?, unidade=?, cidade_destino=?, data_liberacao=?, data_retorno=?, data_finalizacao=? WHERE id=?"
         ).run([
@@ -252,23 +286,28 @@ router.put('/procedimento/:id', function(req, res) {
             d.pedidoSisreg !== undefined ? d.pedidoSisreg : atual.pedido_sisreg,
             d.dataProcedimento !== undefined ? d.dataProcedimento : atual.data_procedimento,
             d.prioridade || atual.prioridade,
-            d.status || atual.status,
+            novoStatus,
             d.sistema || atual.sistema,
             d.medico !== undefined ? d.medico : atual.medico,
             d.unidade !== undefined ? d.unidade : atual.unidade,
-            d.cidadeDestino !== undefined ? d.cidadeDestino : atual.cidade_destino,
+            novaCidadeDestino,
             d.dataLiberacao !== undefined ? d.dataLiberacao : atual.data_liberacao,
             d.dataRetorno !== undefined ? d.dataRetorno : atual.data_retorno,
             d.dataFinalizacao !== undefined ? d.dataFinalizacao : atual.data_finalizacao,
             id
         ]);
 
+        // Historico de status
         if (d.status && d.status !== atual.status) {
             db.prepare('INSERT INTO historico_status (demanda_id, status) VALUES (?, ?)').run([id, d.status]);
+            console.log('[SERVER] Status alterado de', atual.status, 'para', d.status);
         }
 
+        console.log('[SERVER] ✅ Atualizado com sucesso');
+        console.log('[SERVER] ====================================');
         res.json({ sucesso: true });
     } catch (err) {
+        console.error('[SERVER] ERRO:', err);
         res.status(500).json({ erro: err.message });
     }
 });

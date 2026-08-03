@@ -171,16 +171,46 @@
         } catch (err) { console.error('Erro alertas:', err); }
     }
 
-    async function atualizarNotificacoes() {
-        try {
-            var alertas = await API.getAlertas();
-            if (!alertas) alertas = { total: 0 };
-            var badge = document.getElementById('badge-notificacoes');
-            if (!badge) return;
-            if (alertas.total > 0) { badge.style.display = 'inline-block'; badge.textContent = alertas.total; }
-            else badge.style.display = 'none';
-        } catch (err) { console.error('Erro notificacoes:', err); }
+   async function atualizarNotificacoes() {
+    try {
+        var alertas = await API.getAlertas();
+        if (!alertas) alertas = { total: 0 };
+        
+        // Carrega notificacoes lidas
+        var lidas = JSON.parse(localStorage.getItem('notificacoes_lidas') || '[]');
+        
+        // Conta apenas notificacoes NAO lidas
+        var totalNaoLidas = 0;
+        
+        if (alertas.emergencias) {
+            alertas.emergencias.forEach(function(e) {
+                if (lidas.indexOf('emergencia_' + e.id) === -1) totalNaoLidas++;
+            });
+        }
+        if (alertas.alerta30dias) {
+            alertas.alerta30dias.forEach(function(a) {
+                if (lidas.indexOf('alerta30_' + a.id) === -1) totalNaoLidas++;
+            });
+        }
+        if (alertas.retornosPendentes) {
+            alertas.retornosPendentes.forEach(function(r) {
+                if (lidas.indexOf('retorno_' + r.id) === -1) totalNaoLidas++;
+            });
+        }
+        
+        var badge = document.getElementById('badge-notificacoes');
+        if (!badge) return;
+        
+        if (totalNaoLidas > 0) {
+            badge.style.display = 'inline-block';
+            badge.textContent = totalNaoLidas;
+        } else {
+            badge.style.display = 'none';
+        }
+    } catch (err) { 
+        console.error('Erro notificacoes:', err); 
     }
+}
 
     /* ---- Demandas ---- */
 
@@ -255,7 +285,7 @@ function renderizarDemandas(containerId, listaTemp) {
         if (listaTemp.length > 1) html += '<button type="button" class="btn-remover-demanda" onclick="' + removedor + '(' + d.id + ')">🗑️ Remover</button>';
         html += '</div><div class="demanda-grid">';
         html += '<div class="form-group full-width"><label>Especialidade <span class="obrigatorio">*</span></label><input type="text" value="' + Utils.escapeHtml(d.especialidade || '') + '" oninput="' + atualizador + '(' + d.id + ',\'especialidade\',this.value)" list="lista-especialidades" placeholder="Ex: Cardiologia"></div>';
-        html += '<div class="form-group"><label>Cidade Destino <span class="obrigatorio">*</span></label><input type="text" value="' + Utils.escapeHtml(d.cidadeDestino || '') + '" oninput="' + atualizador + '(' + d.id + ',\'cidadeDestino\',this.value)" list="lista-cidades" placeholder="Para onde vai o paciente"></div>';
+        html += '<div class="form-group"><label>Cidade Destino <small style="color:var(--color-text-light);font-weight:normal;">(preencha ao liberar)</small></label><input type="text" value="' + Utils.escapeHtml(d.cidadeDestino || '') + '" oninput="' + atualizador + '(' + d.id + ',\'cidadeDestino\',this.value)" list="lista-cidades" placeholder="Para onde vai o paciente"></div>';
         html += '<div class="form-group"><label>Data do Procedimento</label><input type="date" value="' + (d.dataProcedimento || '') + '" oninput="' + atualizador + '(' + d.id + ',\'dataProcedimento\',this.value)"></div>';
         if (mostrarCore) html += '<div class="form-group"><label>Codigo Core</label><input type="text" value="' + Utils.escapeHtml(d.pedidoCore || '') + '" oninput="' + atualizador + '(' + d.id + ',\'pedidoCore\',this.value)" maxlength="50"></div>';
         if (mostrarSisreg) html += '<div class="form-group"><label>Codigo Sisreg</label><input type="text" value="' + Utils.escapeHtml(d.pedidoSisreg || '') + '" oninput="' + atualizador + '(' + d.id + ',\'pedidoSisreg\',this.value)" maxlength="50"></div>';
@@ -498,7 +528,7 @@ async function salvarPaciente() {
         pedidoCore: demandasTemp[0] ? demandasTemp[0].pedidoCore : '',
         pedidoSisreg: demandasTemp[0] ? demandasTemp[0].pedidoSisreg : '',
         dataProcedimento: demandasTemp[0] ? demandasTemp[0].dataProcedimento : '',
-        cidadeDestino: demandasTemp[0] ? demandasTemp[0].cidadeDestino : '',
+        cidadeDestino: demandasTemp[0] ? (demandasTemp[0].cidadeDestino || '') : '',
         dataEntrada: elVal('input-data'),
         prioridade: elVal('select-prioridade'),
         sistema: elVal('select-sistema'),
@@ -507,7 +537,7 @@ async function salvarPaciente() {
     };
 
     if (!demanda.especialidade) { Toast.mostrar('Especialidade obrigatoria', 'error'); return; }
-    if (!demanda.cidadeDestino) { Toast.mostrar('Cidade destino obrigatoria', 'error'); return; }
+    // Cidade destino NAO e obrigatoria no cadastro (status = aguardando)
 
     var dados = {
         nome: nome,
@@ -675,19 +705,40 @@ function renderizarHistoricoProcedimentos(p) {
 
 async function mudarStatusProcedimento(demandaId, novoStatus) {
     if (!novoStatus) return;
+
+    // Busca procedimento atual
+    var proc = null;
+    for (var i = 0; i < _todosPacientesCache.length; i++) {
+        if (_todosPacientesCache[i].id === demandaId) { 
+            proc = _todosPacientesCache[i]; 
+            break; 
+        }
+    }
+
+    // Se for liberar e nao tem cidade, abre modal
+    if (novoStatus === 'liberado' && (!proc || !proc.cidade_destino)) {
+        Toast.mostrar('⚠️ Preencha a Cidade Destino primeiro!', 'warning');
+        editarProcedimento(demandaId);
+        return;
+    }
+
+    var dados = { status: novoStatus };
+    var hoje = new Date().toISOString().split('T')[0];
+    
+    if (novoStatus === 'liberado') dados.dataLiberacao = hoje;
+    if (novoStatus === 'retorno') dados.dataRetorno = hoje;
+    if (novoStatus === 'finalizado') dados.dataFinalizacao = hoje;
+
     try {
-        var dados = { status: novoStatus };
-        if (novoStatus === 'liberado') dados.dataLiberacao = new Date().toISOString().split('T')[0];
-        if (novoStatus === 'finalizado') dados.dataFinalizacao = new Date().toISOString().split('T')[0];
-        if (novoStatus === 'retorno') dados.dataRetorno = new Date().toISOString().split('T')[0];
         await API.atualizarProcedimento(demandaId, dados);
-        Toast.mostrar('Status atualizado!', 'success');
-        if (editandoId) { var p = await API.buscarPaciente(editandoId); renderizarHistoricoProcedimentos(p); }
+        Toast.mostrar('✅ Status atualizado para ' + novoStatus + '!', 'success');
+        await carregarLista();
         await atualizarDashboard();
         await atualizarNotificacoes();
-    } catch (err) { Toast.mostrar(err.message, 'error'); }
+    } catch (err) { 
+        Toast.mostrar('❌ Erro: ' + err.message, 'error'); 
+    }
 }
-
 async function excluirProcedimento(id) {
     if (!confirm('Excluir este procedimento?')) return;
     try {
@@ -783,48 +834,78 @@ function filtrarPacientes() {
     renderizarTabela(filtrados);
 }
 
- function renderizarTabela(procedimentos) {
+function renderizarTabela(procedimentos) {
     var tbody = document.getElementById('tbody-pacientes');
     if (!tbody) return;
     tbody.innerHTML = '';
     elSet('total-resultados', procedimentos.length);
-    if (!procedimentos.length) { 
-        tbody.innerHTML = '<tr><td colspan="12" style="text-align:center;padding:40px;color:var(--color-text-light);">📋 Nenhum procedimento</td></tr>'; 
+    
+    if (!procedimentos || procedimentos.length === 0) { 
+        tbody.innerHTML = '<tr><td colspan="11" style="text-align:center;padding:40px;color:var(--color-text-light);">📋 Nenhum procedimento cadastrado</td></tr>'; 
         return; 
     }
 
-    var LABELS_STATUS = { aguardando: '⏳ Aguardando', liberado: '✅ Liberado', retorno: '🔄 Retorno', finalizado: '🏁 Finalizado' };
+    var LABELS_STATUS = { 
+        aguardando: '⏳ Aguardando', 
+        liberado: '✅ Liberado', 
+        retorno: '🔄 Retorno', 
+        finalizado: '🏁 Finalizado' 
+    };
 
     for (var idx = 0; idx < procedimentos.length; idx++) {
         var p = procedimentos[idx];
         if (!p) continue;
+        
         var tr = document.createElement('tr');
         var dias = Utils.calcularDias(p.data_entrada);
         var dc = 'dias-ok';
-        if (p.status !== 'finalizado') { if (dias > 30) dc = 'dias-alerta'; else if (dias > 15) dc = 'dias-atencao'; }
-        var doc = p.documento_valor ? ((p.documento_tipo || '').toUpperCase() + ': ' + p.documento_valor) : '-';
+        if (p.status !== 'finalizado') { 
+            if (dias > 30) dc = 'dias-alerta'; 
+            else if (dias > 15) dc = 'dias-atencao'; 
+        }
+        
+        var doc = p.documento_valor ? 
+            ((p.documento_tipo || '').toUpperCase() + ': ' + p.documento_valor) : '-';
+        
         var sisBadge = '-';
-        if (p.sistema === 'core') sisBadge = '<span class="sistema-badge sistema-core">Core</span>';
-        else if (p.sistema === 'sisreg') sisBadge = '<span class="sistema-badge sistema-sisreg">Sisreg</span>';
-        else if (p.sistema === 'ambos') sisBadge = '<span class="sistema-badge sistema-core">Core</span> <span class="sistema-badge sistema-sisreg">Sisreg</span>';
+        if (p.sistema === 'core') {
+            sisBadge = '<span class="sistema-badge sistema-core">Core</span>';
+        } else if (p.sistema === 'sisreg') {
+            sisBadge = '<span class="sistema-badge sistema-sisreg">Sisreg</span>';
+        } else if (p.sistema === 'ambos') {
+            sisBadge = '<span class="sistema-badge sistema-core">Core</span> <span class="sistema-badge sistema-sisreg">Sisreg</span>';
+        }
 
-        tr.innerHTML = '<td>' + (p.nome || '-') + '</td>' +
+        // 11 COLUNAS (mesma ordem do <thead>)
+        tr.innerHTML = 
+            // 1. Paciente
+            '<td><strong>' + (p.nome || '-') + '</strong></td>' +
+            // 2. Documento
             '<td style="font-size:.82em;">' + doc + '</td>' +
-            '<td><strong>' + (p.especialidade || '-') + '</strong></td>' +
-            '<td>' + (p.cidade_origem || '-') + '</td>' +
-            '<td><strong>' + (p.cidade_destino || '-') + '</strong></td>' +
+            // 3. Especialidade
+            '<td>' + (p.especialidade || '-') + '</td>' +
+            // 4. Data Entrada
             '<td>' + Utils.formatarData(p.data_entrada) + '</td>' +
+            // 5. Data Procedimento
             '<td>' + Utils.formatarData(p.data_procedimento) + '</td>' +
+            // 6. Cidade Destino
+            '<td><strong>' + (p.cidade_destino || '<span style="color:var(--color-warning);">pendente</span>') + '</strong></td>' +
+            // 7. Prioridade
             '<td><span class="prioridade-badge prioridade-' + (p.prioridade || '') + '">' + (RelatorioManager.LABELS.prioridade[p.prioridade] || '') + '</span></td>' +
+            // 8. Status
             '<td><span class="status-badge status-' + (p.status || '') + '">' + (LABELS_STATUS[p.status] || p.status || '') + '</span></td>' +
+            // 9. Sistema
             '<td>' + sisBadge + '</td>' +
+            // 10. Dias
             '<td class="dias-cell ' + dc + '">' + dias + 'd</td>' +
+            // 11. Acoes
             '<td class="acoes-cell">' +
-            '<button class="btn-acao btn-detalhes" onclick="App.verPaciente(' + p.paciente_id + ')" title="Ver detalhes">👁️</button>' +
-            '<button class="btn-acao btn-editar" onclick="App.editarProcedimento(' + p.id + ')" title="Editar">✏️</button>' +
-            '<button class="btn-acao btn-excluir" onclick="App.excluirProcedimentoDireto(' + p.id + ')" title="Excluir">🗑️</button>' +
-            '<button class="btn-acao btn-copiar" onclick="App.editarPaciente(' + p.paciente_id + ')" title="Novo Procedimento">➕</button>' +
+                '<button class="btn-acao btn-detalhes" onclick="App.verPaciente(' + p.paciente_id + ')" title="Ver detalhes">👁️</button>' +
+                '<button class="btn-acao btn-editar" onclick="App.editarProcedimento(' + p.id + ')" title="Editar">✏️</button>' +
+                '<button class="btn-acao btn-excluir" onclick="App.excluirProcedimentoDireto(' + p.id + ')" title="Excluir">🗑️</button>' +
+                '<button class="btn-acao btn-copiar" onclick="App.editarPaciente(' + p.paciente_id + ')" title="Novo Procedimento">➕</button>' +
             '</td>';
+        
         tbody.appendChild(tr);
     }
 }
@@ -1230,21 +1311,14 @@ function filtrarPacientes() {
 
     /* ---- Header, Modais, Atalhos ---- */
     function configurarHeader() {
-        var btnTema = document.getElementById('btn-tema');
-        if (btnTema) btnTema.addEventListener('click', alternarTema);
-        var btnNotif = document.getElementById('btn-notificacoes');
-        if (btnNotif) btnNotif.addEventListener('click', async function() {
-            var alertas = await API.getAlertas();
-            if (!alertas) alertas = { total: 0, alerta30dias: [], emergencias: [], retornosPendentes: [] };
-            var html = alertas.total === 0 ? '<p style="text-align:center;padding:20px;">Nenhuma notificacao</p>' : '';
-            if (alertas.alerta30dias && alertas.alerta30dias.length > 0) html += '<div class="alerta-item alerta-critico"><strong>⏰ ' + alertas.alerta30dias.length + ' paciente(s) > 30 dias</strong></div>';
-            if (alertas.emergencias && alertas.emergencias.length > 0) html += '<div class="alerta-item alerta-urgente"><strong>🔴 ' + alertas.emergencias.length + ' emergencia(s)</strong></div>';
-            if (alertas.retornosPendentes && alertas.retornosPendentes.length > 0) html += '<div class="alerta-item alerta-atencao"><strong>🔄 ' + alertas.retornosPendentes.length + ' retorno(s) pendente(s)</strong></div>';
-            elHtml('conteudo-notificacoes', html);
-            abrirModal('modal-notificacoes');
-        });
-        configurarImportar();
-    }
+    var btnTema = document.getElementById('btn-tema');
+    if (btnTema) btnTema.addEventListener('click', alternarTema);
+    
+    var btnNotif = document.getElementById('btn-notificacoes');
+    if (btnNotif) btnNotif.addEventListener('click', abrirNotificacoes);
+    
+    configurarImportar();
+}
 
     function configurarModais() {
         var closes = document.querySelectorAll('[data-modal]');
@@ -1274,11 +1348,30 @@ function filtrarPacientes() {
 function editarProcedimento(procId) {
     var proc = null;
     for (var i = 0; i < _todosPacientesCache.length; i++) {
-        if (_todosPacientesCache[i].id === procId) { proc = _todosPacientesCache[i]; break; }
+        if (_todosPacientesCache[i].id === procId) { 
+            proc = _todosPacientesCache[i]; 
+            break; 
+        }
     }
-    if (!proc) { Toast.mostrar('Procedimento nao encontrado', 'error'); return; }
+    
+    if (!proc) { 
+        Toast.mostrar('Procedimento nao encontrado', 'error'); 
+        return; 
+    }
 
-    var setVal = function(id, val) { var el = document.getElementById(id); if (el) el.value = val || ''; };
+    console.log('[CLIENT] Abrindo edicao:', proc);
+
+    var setVal = function(id, val) { 
+        var el = document.getElementById(id); 
+        if (el) {
+            el.value = val || '';
+            el.style.borderColor = '';
+            console.log('[CLIENT] Setando', id, '=', val);
+        } else {
+            console.warn('[CLIENT] Elemento NAO ENCONTRADO:', id);
+        }
+    };
+    
     setVal('edit-proc-id', proc.id);
     setVal('edit-proc-nome', proc.nome);
     var doc = proc.documento_valor ? ((proc.documento_tipo || '').toUpperCase() + ': ' + proc.documento_valor) : '-';
@@ -1290,11 +1383,7 @@ function editarProcedimento(procId) {
     setVal('edit-proc-descricao', proc.procedimentos_desc);
     setVal('edit-proc-core', proc.pedido_core);
     setVal('edit-proc-sisreg', proc.pedido_sisreg);
-    setVal('edit-proc-prioridade', proc.prioridade);
     setVal('edit-proc-status', proc.status);
-    setVal('edit-proc-sistema', proc.sistema);
-    setVal('edit-proc-medico', proc.medico);
-    setVal('edit-proc-unidade', proc.unidade);
     setVal('edit-proc-liberacao', proc.data_liberacao);
     setVal('edit-proc-retorno', proc.data_retorno);
     setVal('edit-proc-finalizacao', proc.data_finalizacao);
@@ -1304,65 +1393,79 @@ function editarProcedimento(procId) {
 
 async function salvarEdicaoProcedimento() {
     var id = parseInt(elVal('edit-proc-id'));
-    if (!id) { Toast.mostrar('ID invalido', 'error'); return; }
+    if (!id) { 
+        Toast.mostrar('ID invalido', 'error'); 
+        return; 
+    }
 
+    console.log('[CLIENT] ========================================');
+    console.log('[CLIENT] INICIANDO SALVAMENTO');
+    console.log('[CLIENT] ID:', id);
+
+    // VALIDACAO CRITICA: Verificar se o elemento cidade existe
+    var elCidade = document.getElementById('edit-proc-cidade-destino');
+    
+    if (!elCidade) {
+        console.error('[CLIENT] ERRO CRITICO: Elemento edit-proc-cidade-destino NAO ENCONTRADO no DOM!');
+        Toast.mostrar('Erro: Campo cidade nao encontrado. Recarregue a pagina (Ctrl+F5).', 'error');
+        return;
+    }
+
+    console.log('[CLIENT] ✅ Elemento cidade encontrado');
+
+    // LER VALORES DIRETAMENTE
+    var cidadeDestino = (elCidade.value || '').trim();
+    var elStatus = document.getElementById('edit-proc-status');
+    var novoStatus = elStatus ? elStatus.value : '';
+
+    console.log('[CLIENT] Valores lidos:');
+    console.log('[CLIENT]   cidadeDestino:', cidadeDestino);
+    console.log('[CLIENT]   novoStatus:', novoStatus);
+
+    // VALIDACAO: Cidade obrigatoria apenas ao liberar
+    if (novoStatus === 'liberado' && !cidadeDestino) {
+        console.error('[CLIENT] VALIDACAO FALHOU: Status=liberado mas cidadeDestino vazio');
+        Toast.mostrar('⚠️ Preencha a Cidade Destino antes de liberar!', 'error');
+        elCidade.focus();
+        elCidade.style.borderColor = 'var(--color-danger)';
+        elCidade.style.borderWidth = '2px';
+        return;
+    }
+
+    // MONTAR OBJETO DE DADOS
     var dados = {
         especialidade: elVal('edit-proc-especialidade'),
-        cidadeDestino: elVal('edit-proc-cidade-destino'),
+        cidadeDestino: cidadeDestino,  // CAMPO CRITICO
         dataEntrada: elVal('edit-proc-data-entrada'),
         dataProcedimento: elVal('edit-proc-data-procedimento'),
         procedimentos: elVal('edit-proc-descricao'),
         pedidoCore: elVal('edit-proc-core'),
         pedidoSisreg: elVal('edit-proc-sisreg'),
-        prioridade: elVal('edit-proc-prioridade'),
-        status: elVal('edit-proc-status'),
-        sistema: elVal('edit-proc-sistema'),
-        medico: elVal('edit-proc-medico'),
-        unidade: elVal('edit-proc-unidade'),
+        status: novoStatus,
         dataLiberacao: elVal('edit-proc-liberacao'),
         dataRetorno: elVal('edit-proc-retorno'),
         dataFinalizacao: elVal('edit-proc-finalizacao')
     };
 
-    try {
-        await API.atualizarProcedimento(id, dados);
-        Toast.mostrar('Procedimento atualizado!', 'success');
-        fecharModal('modal-editar-procedimento');
-        await carregarLista();
-        await atualizarDashboard();
-    } catch (err) { Toast.mostrar('Erro: ' + err.message, 'error'); }
-}
+    // Preenche datas automaticamente
+    var hoje = new Date().toISOString().split('T')[0];
+    if (novoStatus === 'liberado' && !dados.dataLiberacao) dados.dataLiberacao = hoje;
+    if (novoStatus === 'retorno' && !dados.dataRetorno) dados.dataRetorno = hoje;
+    if (novoStatus === 'finalizado' && !dados.dataFinalizacao) dados.dataFinalizacao = hoje;
 
-async function salvarEdicaoProcedimento() {
-    var id = parseInt(elVal('edit-proc-id'));
-    if (!id) { Toast.mostrar('ID invalido', 'error'); return; }
-    
-    var dados = {
-        especialidade: elVal('edit-proc-especialidade'),
-        dataEntrada: elVal('edit-proc-data-entrada'),
-        dataProcedimento: elVal('edit-proc-data-procedimento'),
-        procedimentos: elVal('edit-proc-descricao'),
-        prioridade: elVal('edit-proc-prioridade'),
-        status: elVal('edit-proc-status'),
-        sistema: elVal('edit-proc-sistema'),
-        medico: elVal('edit-proc-medico'),
-        unidade: elVal('edit-proc-unidade'),
-        pedidoCore: elVal('edit-proc-core'),
-        pedidoSisreg: elVal('edit-proc-sisreg'),
-        dataLiberacao: elVal('edit-proc-liberacao'),
-        dataRetorno: elVal('edit-proc-retorno'),
-        dataFinalizacao: elVal('edit-proc-finalizacao')
-    };
-    
+    console.log('[CLIENT] Dados sendo enviados:', JSON.stringify(dados, null, 2));
+    console.log('[CLIENT] ========================================');
+
     try {
         await API.atualizarProcedimento(id, dados);
-        Toast.mostrar('Procedimento atualizado!', 'success');
+        Toast.mostrar('✅ Procedimento atualizado!', 'success');
         fecharModal('modal-editar-procedimento');
         await carregarLista();
         await atualizarDashboard();
         await atualizarNotificacoes();
-    } catch (err) {
-        Toast.mostrar('Erro ao salvar: ' + err.message, 'error');
+    } catch (err) { 
+        console.error('[CLIENT] ERRO:', err);
+        Toast.mostrar('❌ Erro: ' + err.message, 'error'); 
     }
 }
 
@@ -1385,61 +1488,165 @@ async function excluirProcedimentoDoModal() {
 function editarProcedimento(procId) {
     var proc = null;
     for (var i = 0; i < _todosPacientesCache.length; i++) {
-        if (_todosPacientesCache[i].id === procId) { proc = _todosPacientesCache[i]; break; }
+        if (_todosPacientesCache[i].id === procId) { 
+            proc = _todosPacientesCache[i]; 
+            break; 
+        }
     }
-    if (!proc) { Toast.mostrar('Procedimento nao encontrado', 'error'); return; }
+    
+    if (!proc) { 
+        Toast.mostrar('Procedimento nao encontrado', 'error'); 
+        return; 
+    }
 
-    var setVal = function(id, val) { var el = document.getElementById(id); if (el) el.value = val || ''; };
+    console.log('[CLIENT] ========================================');
+    console.log('[CLIENT] ABRINDO MODAL DE EDICAO');
+    console.log('[CLIENT] Procedimento ID:', proc.id);
+    console.log('[CLIENT] Cidade destino no cache:', proc.cidade_destino);
+    console.log('[CLIENT] Status no cache:', proc.status);
+    console.log('[CLIENT] ========================================');
+
+    var setVal = function(id, val) { 
+        var el = document.getElementById(id); 
+        if (el) {
+            el.value = val || '';
+            el.style.borderColor = '';
+            el.style.borderWidth = '';
+            console.log('[CLIENT] Setando', id, '=', val || '(vazio)');
+        } else {
+            console.error('[CLIENT] ❌ Elemento NAO ENCONTRADO:', id);
+        }
+    };
+    
     setVal('edit-proc-id', proc.id);
     setVal('edit-proc-nome', proc.nome);
     var doc = proc.documento_valor ? ((proc.documento_tipo || '').toUpperCase() + ': ' + proc.documento_valor) : '-';
     setVal('edit-proc-doc', doc);
     setVal('edit-proc-especialidade', proc.especialidade);
+    setVal('edit-proc-cidade-destino', proc.cidade_destino);
     setVal('edit-proc-data-entrada', proc.data_entrada);
     setVal('edit-proc-data-procedimento', proc.data_procedimento);
     setVal('edit-proc-descricao', proc.procedimentos_desc);
     setVal('edit-proc-core', proc.pedido_core);
     setVal('edit-proc-sisreg', proc.pedido_sisreg);
-    setVal('edit-proc-prioridade', proc.prioridade);
     setVal('edit-proc-status', proc.status);
-    setVal('edit-proc-sistema', proc.sistema);
-    setVal('edit-proc-medico', proc.medico);
-    setVal('edit-proc-unidade', proc.unidade);
     setVal('edit-proc-liberacao', proc.data_liberacao);
     setVal('edit-proc-retorno', proc.data_retorno);
     setVal('edit-proc-finalizacao', proc.data_finalizacao);
+
+    // MONITORAMENTO EM TEMPO REAL do campo cidade
+    var elCidade = document.getElementById('edit-proc-cidade-destino');
+    if (elCidade) {
+        console.log('[CLIENT] ✅ Adicionando monitoramento ao campo cidade');
+        
+        // Remove listener anterior se existir
+        elCidade.removeEventListener('input', window._cidadeInputHandler);
+        
+        // Adiciona novo listener
+        window._cidadeInputHandler = function() {
+            console.log('[CLIENT] 🔄 Campo cidade alterado para:', elCidade.value);
+        };
+        elCidade.addEventListener('input', window._cidadeInputHandler);
+        
+        console.log('[CLIENT] Valor inicial do campo cidade:', elCidade.value);
+    } else {
+        console.error('[CLIENT] ❌ CRITICO: Elemento edit-proc-cidade-destino NAO EXISTE no DOM!');
+    }
 
     abrirModal('modal-editar-procedimento');
 }
 
 async function salvarEdicaoProcedimento() {
     var id = parseInt(elVal('edit-proc-id'));
-    if (!id) { Toast.mostrar('ID invalido', 'error'); return; }
+    if (!id) { 
+        Toast.mostrar('ID invalido', 'error'); 
+        return; 
+    }
 
+    console.log('[CLIENT] ========================================');
+    console.log('[CLIENT] INICIANDO SALVAMENTO');
+    console.log('[CLIENT] ID:', id);
+    console.log('[CLIENT] ========================================');
+
+    // VERIFICACAO CRITICA: Elemento cidade
+    var elCidade = document.getElementById('edit-proc-cidade-destino');
+    
+    if (!elCidade) {
+        console.error('[CLIENT] ❌ ERRO CRITICO: Elemento edit-proc-cidade-destino NAO ENCONTRADO!');
+        console.error('[CLIENT] HTML do modal:', document.getElementById('modal-editar-procedimento').innerHTML);
+        Toast.mostrar('Erro: Campo cidade nao encontrado no formulario. Recarregue a pagina.', 'error');
+        return;
+    }
+
+    console.log('[CLIENT] ✅ Elemento cidade encontrado');
+    console.log('[CLIENT] Estado do elemento cidade:');
+    console.log('[CLIENT]   tagName:', elCidade.tagName);
+    console.log('[CLIENT]   type:', elCidade.type);
+    console.log('[CLIENT]   value:', elCidade.value);
+    console.log('[CLIENT]   disabled:', elCidade.disabled);
+    console.log('[CLIENT]   readonly:', elCidade.readOnly);
+    console.log('[CLIENT]   hidden:', elCidade.hidden);
+    console.log('[CLIENT]   display:', window.getComputedStyle(elCidade).display);
+    console.log('[CLIENT]   visibility:', window.getComputedStyle(elCidade).visibility);
+
+    // LER VALORES
+    var cidadeDestino = (elCidade.value || '').trim();
+    var elStatus = document.getElementById('edit-proc-status');
+    var novoStatus = elStatus ? elStatus.value : '';
+
+    console.log('[CLIENT] Valores lidos:');
+    console.log('[CLIENT]   cidadeDestino (raw):', elCidade.value);
+    console.log('[CLIENT]   cidadeDestino (trim):', cidadeDestino);
+    console.log('[CLIENT]   novoStatus:', novoStatus);
+
+    // VALIDACAO
+    if (novoStatus === 'liberado' && !cidadeDestino) {
+        console.error('[CLIENT] ❌ VALIDACAO FALHOU:');
+        console.error('[CLIENT]   Status = liberado');
+        console.error('[CLIENT]   Cidade = vazio');
+        Toast.mostrar('⚠️ Preencha a Cidade Destino antes de liberar!', 'error');
+        elCidade.focus();
+        elCidade.style.borderColor = 'var(--color-danger)';
+        elCidade.style.borderWidth = '2px';
+        return;
+    }
+
+    // MONTAR OBJETO
     var dados = {
         especialidade: elVal('edit-proc-especialidade'),
+        cidadeDestino: cidadeDestino,
         dataEntrada: elVal('edit-proc-data-entrada'),
         dataProcedimento: elVal('edit-proc-data-procedimento'),
         procedimentos: elVal('edit-proc-descricao'),
         pedidoCore: elVal('edit-proc-core'),
         pedidoSisreg: elVal('edit-proc-sisreg'),
-        prioridade: elVal('edit-proc-prioridade'),
-        status: elVal('edit-proc-status'),
-        sistema: elVal('edit-proc-sistema'),
-        medico: elVal('edit-proc-medico'),
-        unidade: elVal('edit-proc-unidade'),
+        status: novoStatus,
         dataLiberacao: elVal('edit-proc-liberacao'),
         dataRetorno: elVal('edit-proc-retorno'),
         dataFinalizacao: elVal('edit-proc-finalizacao')
     };
 
+    var hoje = new Date().toISOString().split('T')[0];
+    if (novoStatus === 'liberado' && !dados.dataLiberacao) dados.dataLiberacao = hoje;
+    if (novoStatus === 'retorno' && !dados.dataRetorno) dados.dataRetorno = hoje;
+    if (novoStatus === 'finalizado' && !dados.dataFinalizacao) dados.dataFinalizacao = hoje;
+
+    console.log('[CLIENT] Objeto final:');
+    console.log(JSON.stringify(dados, null, 2));
+    console.log('[CLIENT] cidadeDestino no objeto:', dados.cidadeDestino);
+    console.log('[CLIENT] ========================================');
+
     try {
         await API.atualizarProcedimento(id, dados);
-        Toast.mostrar('Procedimento atualizado!', 'success');
+        Toast.mostrar('✅ Procedimento atualizado!', 'success');
         fecharModal('modal-editar-procedimento');
         await carregarLista();
         await atualizarDashboard();
-    } catch (err) { Toast.mostrar('Erro: ' + err.message, 'error'); }
+        await atualizarNotificacoes();
+    } catch (err) { 
+        console.error('[CLIENT] ERRO:', err);
+        Toast.mostrar('❌ Erro: ' + err.message, 'error'); 
+    }
 }
 
 async function excluirProcedimentoDoModal() {
@@ -1648,6 +1855,173 @@ function imprimirFichaPaciente() {
         setTimeout(function() { area.style.display = 'none'; }, 1000);
     }, 800);
 }
+/* ---- Sistema de Notificações com Marcao de Lido ---- */
+async function abrirNotificacoes() {
+    abrirModal('modal-notificacoes');
+    
+    var conteudo = document.getElementById('conteudo-notificacoes');
+    if (!conteudo) return;
+    
+    conteudo.innerHTML = '<p style="text-align:center;color:var(--color-text-light);padding:20px;">Carregando alertas...</p>';
+    
+    try {
+        var alertas = await API.getAlertas();
+        if (!alertas) alertas = { alerta30dias: [], emergencias: [], retornosPendentes: [], total: 0 };
+
+        // Carrega notificaes lidas do localStorage
+        var lidas = JSON.parse(localStorage.getItem('notificacoes_lidas') || '[]');
+
+        var html = '';
+
+        if (alertas.total === 0) {
+            html += '<div style="text-align:center;padding:40px;">';
+            html += '<div style="font-size:4em;margin-bottom:15px;">✨</div>';
+            html += '<h3 style="color:var(--color-text-light);">Tudo em dia!</h3>';
+            html += '<p style="color:var(--color-text-light);">Nenhuma notificacao pendente no momento.</p>';
+            html += '</div>';
+        } else {
+            // Botao para limpar todas
+            html += '<div style="background:var(--color-border-light);padding:12px;border-radius:8px;margin-bottom:20px;display:flex;justify-content:space-between;align-items:center;">';
+            html += '<strong>🔔 ' + alertas.total + ' alerta(s) requerem atencao</strong>';
+            html += '<button class="btn btn-secondary btn-small" onclick="App.limparTodasNotificacoes()">✓ Marcar todas como lidas</button>';
+            html += '</div>';
+
+            // Emergencias
+            if (alertas.emergencias && alertas.emergencias.length > 0) {
+                html += '<div style="margin-bottom:20px;">';
+                html += '<h4 style="color:var(--color-danger);border-bottom:2px solid var(--color-danger);padding-bottom:5px;margin-bottom:10px;">🔴 Emergencias (' + alertas.emergencias.length + ')</h4>';
+                for (var i = 0; i < alertas.emergencias.length; i++) {
+                    var e = alertas.emergencias[i];
+                    var dias = calcularDias(e.data_entrada);
+                    var chaveLida = 'emergencia_' + e.id;
+                    var estaLida = lidas.indexOf(chaveLida) !== -1;
+                    
+                    html += '<div style="background:' + (estaLida ? 'rgba(148,163,184,.1)' : 'rgba(239,68,68,.08)') + ';border-left:4px solid ' + (estaLida ? 'var(--color-border)' : 'var(--color-danger)') + ';padding:12px;margin-bottom:8px;border-radius:6px;opacity:' + (estaLida ? '0.6' : '1') + ';">';
+                    html += '<div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;">';
+                    html += '<div><strong>' + (e.nome || 'Paciente') + '</strong>';
+                    html += '<div style="font-size:.85em;color:var(--color-text-light);margin-top:3px;">' + (e.especialidade || '-') + '</div>';
+                    html += '</div>';
+                    html += '<div style="display:flex;gap:8px;align-items:center;">';
+                    html += '<span style="background:' + (estaLida ? 'var(--color-border)' : 'var(--color-danger)') + ';color:white;padding:4px 10px;border-radius:10px;font-size:.8em;font-weight:bold;">' + dias + ' dias</span>';
+                    if (!estaLida) {
+                        html += '<button class="btn btn-secondary btn-small" onclick="App.marcarNotificacaoLida(\'' + chaveLida + '\')">✓ Lido</button>';
+                    }
+                    html += '</div></div></div>';
+                }
+                html += '</div>';
+            }
+
+            // Aguardando > 30 dias
+            if (alertas.alerta30dias && alertas.alerta30dias.length > 0) {
+                html += '<div style="margin-bottom:20px;">';
+                html += '<h4 style="color:var(--color-warning);border-bottom:2px solid var(--color-warning);padding-bottom:5px;margin-bottom:10px;">⏰ Aguardando > 30 dias (' + alertas.alerta30dias.length + ')</h4>';
+                for (var j = 0; j < alertas.alerta30dias.length; j++) {
+                    var a = alertas.alerta30dias[j];
+                    var diasA = calcularDias(a.data_entrada);
+                    var chaveLida = 'alerta30_' + a.id;
+                    var estaLida = lidas.indexOf(chaveLida) !== -1;
+                    
+                    html += '<div style="background:' + (estaLida ? 'rgba(148,163,184,.1)' : 'rgba(245,158,11,.08)') + ';border-left:4px solid ' + (estaLida ? 'var(--color-border)' : 'var(--color-warning)') + ';padding:12px;margin-bottom:8px;border-radius:6px;opacity:' + (estaLida ? '0.6' : '1') + ';">';
+                    html += '<div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;">';
+                    html += '<div><strong>' + (a.nome || 'Paciente') + '</strong>';
+                    html += '<div style="font-size:.85em;color:var(--color-text-light);margin-top:3px;">' + (a.especialidade || '-') + ' • ' + (a.cidade_destino || 'sem destino') + '</div>';
+                    html += '</div>';
+                    html += '<div style="display:flex;gap:8px;align-items:center;">';
+                    html += '<span style="background:' + (estaLida ? 'var(--color-border)' : 'var(--color-warning)') + ';color:white;padding:4px 10px;border-radius:10px;font-size:.8em;font-weight:bold;">' + diasA + ' dias</span>';
+                    if (!estaLida) {
+                        html += '<button class="btn btn-secondary btn-small" onclick="App.marcarNotificacaoLida(\'' + chaveLida + '\')">✓ Lido</button>';
+                    }
+                    html += '</div></div></div>';
+                }
+                html += '</div>';
+            }
+
+            // Retornos pendentes
+            if (alertas.retornosPendentes && alertas.retornosPendentes.length > 0) {
+                html += '<div style="margin-bottom:20px;">';
+                html += '<h4 style="color:var(--color-info);border-bottom:2px solid var(--color-info);padding-bottom:5px;margin-bottom:10px;">🔄 Retornos Pendentes (' + alertas.retornosPendentes.length + ')</h4>';
+                for (var k = 0; k < alertas.retornosPendentes.length; k++) {
+                    var r = alertas.retornosPendentes[k];
+                    var chaveLida = 'retorno_' + r.id;
+                    var estaLida = lidas.indexOf(chaveLida) !== -1;
+                    
+                    html += '<div style="background:' + (estaLida ? 'rgba(148,163,184,.1)' : 'rgba(29,78,216,.08)') + ';border-left:4px solid ' + (estaLida ? 'var(--color-border)' : 'var(--color-info)') + ';padding:12px;margin-bottom:8px;border-radius:6px;opacity:' + (estaLida ? '0.6' : '1') + ';">';
+                    html += '<div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;">';
+                    html += '<div><strong>' + (r.nome || 'Paciente') + '</strong>';
+                    html += '<div style="font-size:.85em;color:var(--color-text-light);margin-top:3px;">' + (r.especialidade || '-') + '</div>';
+                    html += '</div>';
+                    html += '<div style="display:flex;gap:8px;align-items:center;">';
+                    html += '<span style="background:' + (estaLida ? 'var(--color-border)' : 'var(--color-info)') + ';color:white;padding:4px 10px;border-radius:10px;font-size:.8em;font-weight:bold;">Retorno</span>';
+                    if (!estaLida) {
+                        html += '<button class="btn btn-secondary btn-small" onclick="App.marcarNotificacaoLida(\'' + chaveLida + '\')">✓ Lido</button>';
+                    }
+                    html += '</div></div></div>';
+                }
+                html += '</div>';
+            }
+        }
+
+        conteudo.innerHTML = html;
+    } catch (err) {
+        console.error('[NOTIF] Erro:', err);
+        conteudo.innerHTML = '<p style="color:var(--color-danger);text-align:center;padding:20px;">Erro ao carregar notificacoes: ' + err.message + '</p>';
+    }
+}
+
+function marcarNotificacaoLida(chave) {
+    var lidas = JSON.parse(localStorage.getItem('notificacoes_lidas') || '[]');
+    if (lidas.indexOf(chave) === -1) {
+        lidas.push(chave);
+        localStorage.setItem('notificacoes_lidas', JSON.stringify(lidas));
+    }
+    abrirNotificacoes(); // Recarrega
+    atualizarNotificacoes(); // Atualiza badge
+}
+
+function limparTodasNotificacoes() {
+    if (!confirm('Marcar todas as notificacoes como lidas?')) return;
+    localStorage.setItem('notificacoes_lidas', JSON.stringify([]));
+    abrirNotificacoes();
+    atualizarNotificacoes();
+    Toast.mostrar('Todas as notificacoes marcadas como lidas', 'success');
+}
+
+function calcularDias(dataEntrada) {
+    if (!dataEntrada) return 0;
+    var d1 = new Date(dataEntrada + 'T00:00:00');
+    var d2 = new Date();
+    return Math.max(0, Math.floor((d2 - d1) / (1000 * 60 * 60 * 24)));
+}
+
+function verAlertas() {
+    fecharModal('modal-notificacoes');
+    navegar('alertas');
+}
+
+function calcularDias(dataEntrada) {
+    if (!dataEntrada) return 0;
+    var d1 = new Date(dataEntrada + 'T00:00:00');
+    var d2 = new Date();
+    return Math.max(0, Math.floor((d2 - d1) / (1000 * 60 * 60 * 24)));
+}
+
+function verProcedimentoAlerta(procId) {
+    fecharModal('modal-notificacoes');
+    navegar('lista');
+    setTimeout(function() {
+        editarProcedimento(procId);
+    }, 300);
+}
+
+function verProcedimentoEmergencia(procId) {
+    verProcedimentoAlerta(procId);
+}
+
+function verAlertas() {
+    fecharModal('modal-notificacoes');
+    navegar('alertas');
+}
+
     /* ---- API Global ---- */
     window.App = {
     navegar: navegar, editarPaciente: editarPaciente, excluirPaciente: excluirPaciente,
@@ -1668,8 +2042,42 @@ function imprimirFichaPaciente() {
     excluirProcedimentoDireto: excluirProcedimentoDireto,
     verPaciente: verPaciente,
     imprimirFichaPaciente: imprimirFichaPaciente,
+    abrirNotificacoes: abrirNotificacoes,
+    verProcedimentoAlerta: verProcedimentoAlerta,
+    verProcedimentoEmergencia: verProcedimentoEmergencia,
+    verAlertas: verAlertas,
+    marcarNotificacaoLida: marcarNotificacaoLida,
+    limparTodasNotificacoes: limparTodasNotificacoes,
+    verAlertas: verAlertas,
+    testarCampoCidade: testarCampoCidade
 };
 
     if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', inicializar);
     else inicializar();
 })();
+
+function testarCampoCidade() {
+    console.log('[CLIENT] ========================================');
+    console.log('[CLIENT] TESTE MANUAL DO CAMPO CIDADE');
+    console.log('[CLIENT] ========================================');
+    
+    var elCidade = document.getElementById('edit-proc-cidade-destino');
+    
+    if (!elCidade) {
+        console.error('[CLIENT] ❌ Elemento NAO ENCONTRADO!');
+        alert('ERRO: Campo cidade nao encontrado no DOM!');
+        return;
+    }
+    
+    console.log('[CLIENT] Elemento encontrado:', elCidade);
+    console.log('[CLIENT] Valor atual:', elCidade.value);
+    console.log('[CLIENT] Tipo:', elCidade.type);
+    console.log('[CLIENT] Nome:', elCidade.name);
+    console.log('[CLIENT] ID:', elCidade.id);
+    console.log('[CLIENT] Visivel:', window.getComputedStyle(elCidade).display !== 'none');
+    
+    alert('Campo encontrado!\n\nValor atual: "' + elCidade.value + '"\n\nDigite algo no campo e clique OK para ver se atualiza.');
+    
+    console.log('[CLIENT] Valor apos alerta:', elCidade.value);
+    console.log('[CLIENT] ========================================');
+}
