@@ -72,24 +72,30 @@ var RelatorioManager = (function() {
             div.innerHTML = html;
         },
 
-                gerarPdfRelatorio: function(procedimentos, tipo, mes, ano, cidade, status, sistema) {
+         gerarPdfRelatorio: function(procedimentos, tipo, mes, ano, cidade, status, sistema) {
             var area = document.getElementById('area-impressao');
-            if (!area) { alert('Erro: elemento #area-impressao nao encontrado no HTML'); return; }
+            if (!area) { alert('Erro: area de impressao nao encontrada'); return; }
             
             if (!procedimentos || !procedimentos.length) {
                 alert('Nenhum procedimento para gerar PDF. Verifique os filtros.');
                 return;
             }
 
+            // ✅ Define o nome do arquivo do relatório
+            var tituloRelatorio = tipo === 'mensal' 
+                ? 'SGP - Relatorio Mensal ' + (MESES_FULL[parseInt(mes) - 1] || '') + '-' + ano 
+                : 'SGP - Relatorio Anual ' + ano;
+            var tituloOriginal = document.title;
+            document.title = tituloRelatorio;
+
             var stats = _calcularStats(procedimentos);
-            var titulo = tipo === 'mensal' ? 'Relatorio Mensal - ' + (MESES_FULL[parseInt(mes) - 1] || '') + '/' + ano : 'Relatorio Anual - ' + ano;
             var filtrosTexto = [];
             if (cidade) filtrosTexto.push('Cidade: ' + cidade);
             if (status) filtrosTexto.push('Status: ' + (LABELS.status[status] || status));
             if (sistema) filtrosTexto.push('Sistema: ' + sistema);
 
             var html = '<div class="ficha-pdf">';
-            html += '<h1>SGP - ' + titulo + '</h1>';
+            html += '<h1>' + tituloRelatorio + '</h1>';
             html += '<div class="subtitulo">Gerado em: ' + new Date().toLocaleString('pt-BR');
             if (filtrosTexto.length) html += ' | ' + filtrosTexto.join(' | ');
             html += '</div>';
@@ -125,8 +131,7 @@ var RelatorioManager = (function() {
                 html += '<div class="ficha-campo"><label>DOC</label><span>' + doc + '</span></div>';
                 html += '<div class="ficha-campo"><label>ENTRADA</label><span>' + _formatarData(p.data_entrada) + ' (' + dias + 'd)</span></div>';
                 html += '<div class="ficha-campo"><label>DATA PROC</label><span>' + _formatarData(p.data_procedimento) + '</span></div>';
-                html += '<div class="ficha-campo"><label>CIDADE ORIGEM</label><span>' + (p.cidade_origem || '-') + '</span></div>';
-                html += '<div class="ficha-campo"><label>CIDADE DESTINO</label><span><strong>' + (p.cidade_destino || '-') + '</strong></span></div>';
+                html += '<div class="ficha-campo"><label>CIDADE</label><span>' + (p.cidade || '-') + '</span></div>';
                 html += '<div class="ficha-campo"><label>PRIORIDADE</label><span>' + (LABELS.prioridade[p.prioridade] || '-') + '</span></div>';
                 html += '<div class="ficha-campo"><label>STATUS</label><span>' + (LABELS.status[p.status] || '-') + '</span></div>';
                 html += '<div class="ficha-campo"><label>SISTEMA</label><span>' + (p.sistema || '-') + '</span></div>';
@@ -138,24 +143,19 @@ var RelatorioManager = (function() {
                 html += '</div>';
             }
 
-            html += '<div class="ficha-rodape">SGP - Sistema de Gerenciamento de Pacientes</div>';
+            html += '<div class="ficha-rodape">Sistema de Gerenciamento de Pacientes</div>';
             html += '</div>';
             
             area.innerHTML = html;
-            
-            // Remove display:none inline antes de imprimir
             area.style.display = 'block';
             area.style.visibility = 'visible';
             
-            console.log('[PDF] HTML injetado, tamanho:', html.length, 'caracteres');
-            console.log('[PDF] Procedimentos:', procedimentos.length);
-            
-            // Aguarda renderizacao
             setTimeout(function() {
                 window.print();
-                // Restaura oculto apos impressao
                 setTimeout(function() {
                     area.style.display = 'none';
+                    // ✅ Restaura o título original
+                    document.title = tituloOriginal;
                 }, 1000);
             }, 800);
         },

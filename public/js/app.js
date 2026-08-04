@@ -897,6 +897,7 @@
         setVal('edit-proc-descricao', proc.procedimentos_desc);
         setVal('edit-proc-core', proc.pedido_core);
         setVal('edit-proc-sisreg', proc.pedido_sisreg);
+        setVal('edit-proc-prioridade', proc.prioridade || 'azul');
         setVal('edit-proc-status', proc.status);
         setVal('edit-proc-liberacao', proc.data_liberacao);
         setVal('edit-proc-retorno', proc.data_retorno);
@@ -964,6 +965,7 @@
             local: elVal('edit-proc-local'),
             medicoProcedimento: elVal('edit-proc-medico'),
             cidadeDestino: cidadeDestino,
+            prioridade: elVal('edit-proc-prioridade'),
             dataEntrada: elVal('edit-proc-data-entrada'),
             dataProcedimento: elVal('edit-proc-data-procedimento'),
             procedimentos: elVal('edit-proc-descricao'),
@@ -1067,24 +1069,32 @@
         } catch (err) { Toast.mostrar('Erro ao carregar detalhes', 'error'); }
     }
 
-       function imprimirFichaPaciente() {
+      function imprimirFichaPaciente() {
         var p = window._pacienteParaImpressao;
         if (!p) { Toast.mostrar('Nenhum paciente para imprimir', 'error'); return; }
         
         var area = document.getElementById('area-impressao');
         if (!area) { Toast.mostrar('Area de impressao nao encontrada', 'error'); return; }
         
+        // ✅ Define o nome que aparecerá ao salvar o PDF
+        var nomePaciente = p.nome || 'Paciente';
+        var tituloArquivo = 'SGP - ' + nomePaciente;
+        var tituloOriginal = document.title;
+        
+        // Altera o título da aba do navegador (isso define o nome padrão do arquivo PDF)
+        document.title = tituloArquivo;
+        
         var doc = p.documento_valor ? ((p.documento_tipo || '').toUpperCase() + ': ' + p.documento_valor) : '-';
         var LABELS_STATUS = { aguardando: 'Aguardando', liberado: 'Liberado', retorno: 'Em Retorno', finalizado: 'Finalizado' };
         var LABELS_PRIO = { azul: 'Nao Urgente', verde: 'Pouco Urgente', amarelo: 'Urgencia', vermelho: 'Emergencia' };
 
         var html = '<div class="ficha-pdf">';
-        html += '<h1>SGP - Ficha Completa do Paciente</h1>';
+        html += '<h1>' + tituloArquivo + '</h1>'; // ✅ Título também aparece no topo da folha
         html += '<div class="subtitulo">Impresso em: ' + new Date().toLocaleString('pt-BR') + '</div>';
 
         html += '<h2>Dados Pessoais</h2>';
         html += '<div class="ficha-grid">';
-        html += '<div class="ficha-campo"><label>NOME</label><span>' + (p.nome || '-') + '</span></div>';
+        html += '<div class="ficha-campo"><label>NOME</label><span>' + nomePaciente + '</span></div>';
         html += '<div class="ficha-campo"><label>DOCUMENTO</label><span>' + doc + '</span></div>';
         html += '<div class="ficha-campo"><label>CIDADE</label><span>' + (p.cidade || '-') + '</span></div>';
         if (p.nascimento) html += '<div class="ficha-campo"><label>NASCIMENTO</label><span>' + Utils.formatarData(p.nascimento) + '</span></div>';
@@ -1116,7 +1126,7 @@
         html += '<div>Carimbo da Unidade</div>';
         html += '</div>';
         
-        html += '<div class="ficha-rodape">SGP - Sistema de Gerenciamento de Pacientes</div>';
+        html += '<div class="ficha-rodape">Sistema de Gerenciamento de Pacientes</div>';
         html += '</div>';
         
         area.innerHTML = html;
@@ -1127,6 +1137,8 @@
             window.print(); 
             setTimeout(function() { 
                 area.style.display = 'none'; 
+                // ✅ Restaura o título original da página após imprimir
+                document.title = tituloOriginal; 
             }, 1000); 
         }, 800);
     }

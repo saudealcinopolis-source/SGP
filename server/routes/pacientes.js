@@ -341,7 +341,7 @@ router.put('/procedimento/:id', function(req, res) {
             d.pedidoCore !== undefined ? d.pedidoCore : atual.pedido_core,
             d.pedidoSisreg !== undefined ? d.pedidoSisreg : atual.pedido_sisreg,
             d.dataProcedimento !== undefined ? d.dataProcedimento : atual.data_procedimento,
-            d.prioridade || atual.prioridade,
+            d.prioridade !== undefined ? d.prioridade : atual.prioridade,
             novoStatus,
             d.sistema || atual.sistema,
             d.unidade !== undefined ? d.unidade : atual.unidade,
