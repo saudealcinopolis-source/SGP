@@ -1,0 +1,15 @@
+services:
+  - type: web
+    name: sgp-sistema
+    env: node
+    buildCommand: npm install
+    startCommand: node server/index.js
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: RENDER_DISK_PATH
+        value: /data
+    disk:
+      name: sgp-data
+      mountPath: /data
+      sizeGB: 1

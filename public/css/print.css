@@ -116,19 +116,21 @@
         color: #334155 !important;
     }
 
-    .ficha-assinatura {
-        margin-top: 40px;
+     .ficha-assinatura {
+        margin-top: 60px !important;
         display: grid !important;
         grid-template-columns: 1fr 1fr;
-        gap: 40px;
+        gap: 60px !important;
+        page-break-inside: avoid;
     }
 
     .ficha-assinatura div {
         border-top: 1px solid #000;
-        padding-top: 5px;
+        padding-top: 10px;
         text-align: center;
         font-size: 9pt;
         color: #333 !important;
+        margin-top: 80px;
     }
 
     .ficha-rodape {

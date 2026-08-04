@@ -1,16 +1,17 @@
 /* ================================================================
-   BANCO DE DADOS - SQLite via sql.js
+   BANCO DE DADOS - SQLite via sql.js (Otimizado para Render.com)
    ================================================================ */
 
 var initSqlJs = require('sql.js');
 var fs = require('fs');
 var path = require('path');
 
-var DB_PATH = path.join(__dirname, '..', 'dados', 'sgp.db');
-var dadosDir = path.dirname(DB_PATH);
+// Usa variável de ambiente do Render para disco persistente, ou cai para pasta local
+var DB_DIR = process.env.RENDER_DISK_PATH || path.join(__dirname, '..', 'dados');
+var DB_PATH = path.join(DB_DIR, 'sgp.db');
 
-if (!fs.existsSync(dadosDir)) {
-    fs.mkdirSync(dadosDir, { recursive: true });
+if (!fs.existsSync(DB_DIR)) {
+    fs.mkdirSync(DB_DIR, { recursive: true });
 }
 
 var db = null;
@@ -89,12 +90,16 @@ async function inicializarBanco() {
         console.log('[DB] Banco carregado:', DB_PATH);
     } else {
         db = new SQL.Database();
-        console.log('[DB] Novo banco criado');
+        console.log('[DB] Novo banco criado em:', DB_PATH);
     }
 
+    // Otimizações de performance para SQLite
     db.run("PRAGMA foreign_keys = ON");
+    db.run("PRAGMA journal_mode = WAL");
+    db.run("PRAGMA synchronous = NORMAL");
+    db.run("PRAGMA cache_size = -64000");
 
-    // Paciente = dados pessoais (cidade = origem)
+    // Paciente = dados pessoais + médico solicitante
     db.run(
         "CREATE TABLE IF NOT EXISTS pacientes (" +
         "id INTEGER PRIMARY KEY AUTOINCREMENT, " +
@@ -107,10 +112,11 @@ async function inicializarBanco() {
         "telefone TEXT DEFAULT '', " +
         "telefone2 TEXT DEFAULT '', " +
         "endereco TEXT DEFAULT '', " +
+        "medico_solicitante TEXT DEFAULT '', " +
         "data_cadastro TEXT NOT NULL DEFAULT (datetime('now','localtime')))"
     );
 
-    // Procedimento = demanda isolada (cidade_destino = local do atendimento)
+    // Procedimento = demanda isolada com local e médico do procedimento
     db.run(
         "CREATE TABLE IF NOT EXISTS demandas (" +
         "id INTEGER PRIMARY KEY AUTOINCREMENT, " +
@@ -124,8 +130,9 @@ async function inicializarBanco() {
         "prioridade TEXT NOT NULL DEFAULT 'azul', " +
         "status TEXT NOT NULL DEFAULT 'aguardando', " +
         "sistema TEXT NOT NULL DEFAULT 'core', " +
-        "medico TEXT DEFAULT '', " +
         "unidade TEXT DEFAULT '', " +
+        "local TEXT DEFAULT '', " +
+        "medico_procedimento TEXT DEFAULT '', " +
         "cidade_destino TEXT DEFAULT '', " +
         "data_liberacao TEXT DEFAULT '', " +
         "data_retorno TEXT DEFAULT '', " +
@@ -135,24 +142,24 @@ async function inicializarBanco() {
 
     // Migrações para bancos antigos
     var migracoes = [
+        "ALTER TABLE pacientes ADD COLUMN medico_solicitante TEXT DEFAULT ''",
+        "ALTER TABLE demandas ADD COLUMN local TEXT DEFAULT ''",
+        "ALTER TABLE demandas ADD COLUMN medico_procedimento TEXT DEFAULT ''",
+        "ALTER TABLE demandas ADD COLUMN cidade_destino TEXT DEFAULT ''",
         "ALTER TABLE demandas ADD COLUMN data_entrada TEXT DEFAULT ''",
         "ALTER TABLE demandas ADD COLUMN prioridade TEXT DEFAULT 'azul'",
         "ALTER TABLE demandas ADD COLUMN status TEXT DEFAULT 'aguardando'",
         "ALTER TABLE demandas ADD COLUMN sistema TEXT DEFAULT 'core'",
-        "ALTER TABLE demandas ADD COLUMN medico TEXT DEFAULT ''",
         "ALTER TABLE demandas ADD COLUMN unidade TEXT DEFAULT ''",
-        "ALTER TABLE demandas ADD COLUMN cidade_destino TEXT DEFAULT ''",
         "ALTER TABLE demandas ADD COLUMN data_liberacao TEXT DEFAULT ''",
         "ALTER TABLE demandas ADD COLUMN data_retorno TEXT DEFAULT ''",
         "ALTER TABLE demandas ADD COLUMN data_finalizacao TEXT DEFAULT ''"
     ];
     for (var i = 0; i < migracoes.length; i++) {
-        try { db.run(migracoes[i]); } catch (e) { /* ignora */ }
+        try { db.run(migracoes[i]); } catch (e) { /* ignora se já existir */ }
     }
 
     db.run("CREATE TABLE IF NOT EXISTS tags (id INTEGER PRIMARY KEY AUTOINCREMENT, paciente_id INTEGER NOT NULL, nome TEXT NOT NULL, cor TEXT NOT NULL DEFAULT 'azul', FOREIGN KEY (paciente_id) REFERENCES pacientes(id) ON DELETE CASCADE)");
-    db.run("CREATE TABLE IF NOT EXISTS observacoes (id INTEGER PRIMARY KEY AUTOINCREMENT, paciente_id INTEGER NOT NULL, texto TEXT NOT NULL, data_criacao TEXT NOT NULL DEFAULT (datetime('now','localtime')), FOREIGN KEY (paciente_id) REFERENCES pacientes(id) ON DELETE CASCADE)");
-    db.run("CREATE TABLE IF NOT EXISTS documentos (id INTEGER PRIMARY KEY AUTOINCREMENT, paciente_id INTEGER NOT NULL, nome_original TEXT NOT NULL, nome_arquivo TEXT NOT NULL, tipo_mime TEXT NOT NULL DEFAULT '', tamanho_bytes INTEGER NOT NULL DEFAULT 0, data_upload TEXT NOT NULL DEFAULT (datetime('now','localtime')), FOREIGN KEY (paciente_id) REFERENCES pacientes(id) ON DELETE CASCADE)");
     db.run("CREATE TABLE IF NOT EXISTS historico_status (id INTEGER PRIMARY KEY AUTOINCREMENT, demanda_id INTEGER NOT NULL, status TEXT NOT NULL, data_criacao TEXT NOT NULL DEFAULT (datetime('now','localtime')), FOREIGN KEY (demanda_id) REFERENCES demandas(id) ON DELETE CASCADE)");
 
     db.run("CREATE INDEX IF NOT EXISTS idx_dem_paciente ON demandas(paciente_id)");
@@ -160,9 +167,10 @@ async function inicializarBanco() {
     db.run("CREATE INDEX IF NOT EXISTS idx_dem_data ON demandas(data_entrada)");
     db.run("CREATE INDEX IF NOT EXISTS idx_dem_cidade_destino ON demandas(cidade_destino)");
     db.run("CREATE INDEX IF NOT EXISTS idx_pac_documento ON pacientes(documento_valor)");
+    db.run("CREATE INDEX IF NOT EXISTS idx_pac_nome ON pacientes(nome)");
 
     salvar();
-    console.log('[DB] Tabelas prontas');
+    console.log('[DB] Tabelas prontas e otimizadas');
     return true;
 }
 
